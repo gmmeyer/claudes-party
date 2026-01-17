@@ -119,8 +119,21 @@ export const IPC_CHANNELS = {
   SEND_INPUT_TO_SESSION: 'send-input-to-session',
 
   // Notifications
-  SHOW_NOTIFICATION: 'show-notification'
+  SHOW_NOTIFICATION: 'show-notification',
+
+  // Claude Code hook management
+  INSTALL_HOOKS: 'install-hooks',
+  UNINSTALL_HOOKS: 'uninstall-hooks',
+  GET_HOOK_STATUS: 'get-hook-status'
 } as const;
+
+// Hook status response
+export interface HookStatus {
+  installed: boolean;
+  settingsPath: string;
+  settingsExist: boolean;
+  hookTypes: string[];
+}
 
 // Voice input state
 export interface VoiceInputState {

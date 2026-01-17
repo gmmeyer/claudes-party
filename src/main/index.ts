@@ -14,6 +14,7 @@ import { initNotifications, showNotification } from './notifications';
 import { speakText, startVoiceInput, stopVoiceInput, setPopoverWindowForVoice } from './elevenlabs';
 import { sendSms, startSmsWebhookServer, stopSmsWebhookServer, setMainWindowForSms } from './twilio';
 import { sendInputToSession, cleanupOldInputs } from './input-handler';
+import { installHooks, uninstallHooks, getHookStatus } from './claude-config';
 import { IPC_CHANNELS, AppSettings } from '../shared/types';
 
 // Prevent multiple instances
@@ -147,6 +148,19 @@ ipcMain.on(IPC_CHANNELS.VOICE_INPUT_RESULT, async (_, sessionId: string, transcr
     await sendInputToSession(sessionId, transcript);
     showNotification('Voice Input Sent', `"${transcript}" sent to Claude`);
   }
+});
+
+// Claude Code hook management
+ipcMain.handle(IPC_CHANNELS.INSTALL_HOOKS, () => {
+  return installHooks();
+});
+
+ipcMain.handle(IPC_CHANNELS.UNINSTALL_HOOKS, () => {
+  return uninstallHooks();
+});
+
+ipcMain.handle(IPC_CHANNELS.GET_HOOK_STATUS, () => {
+  return getHookStatus();
 });
 
 // App lifecycle

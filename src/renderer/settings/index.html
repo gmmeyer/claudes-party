@@ -154,21 +154,37 @@
         </div>
       </section>
 
-      <!-- Hook Server Section -->
+      <!-- Claude Code Integration Section -->
       <section class="settings-section">
-        <h2>Hook Server</h2>
-        <p class="section-desc">Configure the hook listener for Claude Code</p>
+        <h2>Claude Code Integration</h2>
+        <p class="section-desc">Connect Claude's Party to Claude Code</p>
 
-        <div class="form-group">
-          <label for="hook-server-port">Port</label>
-          <input type="number" id="hook-server-port" min="1024" max="65535" value="31548">
-          <span class="hint">HTTP server port for receiving hook events</span>
+        <div class="hook-status-box" id="hook-status-box">
+          <div class="hook-status-indicator">
+            <span class="status-dot" id="hook-status-dot"></span>
+            <span id="hook-status-text">Checking hook status...</span>
+          </div>
+          <div class="hook-status-details" id="hook-status-details"></div>
         </div>
 
-        <div class="info-box">
-          <h4>Setup Instructions</h4>
-          <p>Add hooks to your Claude Code settings to send events to this app:</p>
-          <code id="hook-config">
+        <div class="hook-actions">
+          <button id="install-hooks-btn" class="btn btn-primary">Install Hooks</button>
+          <button id="uninstall-hooks-btn" class="btn btn-danger">Uninstall Hooks</button>
+          <button id="refresh-status-btn" class="btn btn-secondary">Refresh Status</button>
+        </div>
+
+        <div class="form-group" style="margin-top: 16px;">
+          <label for="hook-server-port">Hook Server Port</label>
+          <input type="number" id="hook-server-port" min="1024" max="65535" value="31548">
+          <span class="hint">HTTP server port for receiving hook events (requires app restart)</span>
+        </div>
+
+        <details class="manual-setup">
+          <summary>Manual Setup (Advanced)</summary>
+          <div class="info-box">
+            <h4>Manual Configuration</h4>
+            <p>If automatic installation doesn't work, add this to your Claude Code settings:</p>
+            <code id="hook-config">
 {
   "hooks": {
     "PreToolUse": ["curl -X POST http://127.0.0.1:31548/PreToolUse -d @-"],
@@ -177,9 +193,10 @@
     "Stop": ["curl -X POST http://127.0.0.1:31548/Stop -d @-"]
   }
 }
-          </code>
-          <button id="copy-hook-config" class="btn btn-secondary">Copy Configuration</button>
-        </div>
+            </code>
+            <button id="copy-hook-config" class="btn btn-secondary">Copy Configuration</button>
+          </div>
+        </details>
       </section>
     </main>
 

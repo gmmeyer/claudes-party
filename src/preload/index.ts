@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { IPC_CHANNELS, AppSettings, ClaudeSession, SmsMessage } from '../shared/types';
+import { IPC_CHANNELS, AppSettings, ClaudeSession, SmsMessage, HookStatus } from '../shared/types';
 
 // Expose safe APIs to renderer
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -66,7 +66,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Notifications
   showNotification: (title: string, body: string) =>
-    ipcRenderer.send(IPC_CHANNELS.SHOW_NOTIFICATION, title, body)
+    ipcRenderer.send(IPC_CHANNELS.SHOW_NOTIFICATION, title, body),
+
+  // Claude Code hook management
+  installHooks: (): Promise<{ success: boolean; message: string }> =>
+    ipcRenderer.invoke(IPC_CHANNELS.INSTALL_HOOKS),
+  uninstallHooks: (): Promise<{ success: boolean; message: string }> =>
+    ipcRenderer.invoke(IPC_CHANNELS.UNINSTALL_HOOKS),
+  getHookStatus: (): Promise<HookStatus> =>
+    ipcRenderer.invoke(IPC_CHANNELS.GET_HOOK_STATUS)
 });
 
 // Type declaration for renderer
@@ -98,6 +106,10 @@ declare global {
       togglePopover: () => void;
 
       showNotification: (title: string, body: string) => void;
+
+      installHooks: () => Promise<{ success: boolean; message: string }>;
+      uninstallHooks: () => Promise<{ success: boolean; message: string }>;
+      getHookStatus: () => Promise<HookStatus>;
     };
   }
 }

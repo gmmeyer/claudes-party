@@ -18,7 +18,14 @@ interface AppSettings {
   hookServerPort: number;
 }
 
-// DOM Elements
+interface HookStatus {
+  installed: boolean;
+  settingsPath: string;
+  settingsExist: boolean;
+  hookTypes: string[];
+}
+
+// DOM Elements - Settings
 const elevenLabsApiKeyEl = document.getElementById('elevenlabs-api-key') as HTMLInputElement;
 const elevenLabsVoiceIdEl = document.getElementById('elevenlabs-voice-id') as HTMLInputElement;
 const voiceInputEnabledEl = document.getElementById('voice-input-enabled') as HTMLInputElement;
@@ -49,11 +56,20 @@ const resetBtnEl = document.getElementById('reset-btn') as HTMLButtonElement;
 
 const toastEl = document.getElementById('toast') as HTMLDivElement;
 
+// DOM Elements - Hook Management
+const hookStatusDotEl = document.getElementById('hook-status-dot') as HTMLSpanElement;
+const hookStatusTextEl = document.getElementById('hook-status-text') as HTMLSpanElement;
+const hookStatusDetailsEl = document.getElementById('hook-status-details') as HTMLDivElement;
+const installHooksBtnEl = document.getElementById('install-hooks-btn') as HTMLButtonElement;
+const uninstallHooksBtnEl = document.getElementById('uninstall-hooks-btn') as HTMLButtonElement;
+const refreshStatusBtnEl = document.getElementById('refresh-status-btn') as HTMLButtonElement;
+
 // Load settings
 async function loadSettings() {
   const settings = await window.electronAPI.getSettings();
   applySettingsToForm(settings);
   updateHookConfig(settings.hookServerPort);
+  await refreshHookStatus();
 }
 
 function applySettingsToForm(settings: AppSettings) {
@@ -110,10 +126,12 @@ function getFormSettings(): Partial<AppSettings> {
 function updateHookConfig(port: number) {
   const config = `{
   "hooks": {
-    "PreToolUse": ["curl -X POST http://127.0.0.1:${port}/PreToolUse -d @-"],
-    "PostToolUse": ["curl -X POST http://127.0.0.1:${port}/PostToolUse -d @-"],
-    "Notification": ["curl -X POST http://127.0.0.1:${port}/Notification -d @-"],
-    "Stop": ["curl -X POST http://127.0.0.1:${port}/Stop -d @-"]
+    "PreToolUse": ["curl -s -X POST http://127.0.0.1:${port}/PreToolUse -H 'Content-Type: application/json' -d @- 2>/dev/null || true"],
+    "PostToolUse": ["curl -s -X POST http://127.0.0.1:${port}/PostToolUse -H 'Content-Type: application/json' -d @- 2>/dev/null || true"],
+    "Notification": ["curl -s -X POST http://127.0.0.1:${port}/Notification -H 'Content-Type: application/json' -d @- 2>/dev/null || true"],
+    "Stop": ["curl -s -X POST http://127.0.0.1:${port}/Stop -H 'Content-Type: application/json' -d @- 2>/dev/null || true"],
+    "SessionStart": ["curl -s -X POST http://127.0.0.1:${port}/SessionStart -H 'Content-Type: application/json' -d @- 2>/dev/null || true"],
+    "SessionEnd": ["curl -s -X POST http://127.0.0.1:${port}/SessionEnd -H 'Content-Type: application/json' -d @- 2>/dev/null || true"]
   }
 }`;
   hookConfigEl.textContent = config;
@@ -128,7 +146,85 @@ function showToast(message: string, isError = false) {
   }, 3000);
 }
 
-// Event Listeners
+// Hook Status Management
+async function refreshHookStatus() {
+  // Set to checking state
+  hookStatusDotEl.className = 'status-dot checking';
+  hookStatusTextEl.textContent = 'Checking hook status...';
+  hookStatusDetailsEl.textContent = '';
+
+  try {
+    const status: HookStatus = await window.electronAPI.getHookStatus();
+
+    if (status.installed) {
+      hookStatusDotEl.className = 'status-dot installed';
+      hookStatusTextEl.textContent = 'Hooks installed';
+      hookStatusDetailsEl.innerHTML = `
+        <div>Active hooks: ${status.hookTypes.join(', ')}</div>
+        <div style="margin-top: 4px; font-size: 11px; color: #666;">Settings: ${status.settingsPath}</div>
+      `;
+      installHooksBtnEl.textContent = 'Reinstall Hooks';
+    } else {
+      hookStatusDotEl.className = 'status-dot not-installed';
+      hookStatusTextEl.textContent = 'Hooks not installed';
+      hookStatusDetailsEl.innerHTML = status.settingsExist
+        ? `<div>Claude Code settings found but hooks not configured</div>`
+        : `<div>Claude Code settings file will be created</div>`;
+      installHooksBtnEl.textContent = 'Install Hooks';
+    }
+  } catch (error) {
+    hookStatusDotEl.className = 'status-dot not-installed';
+    hookStatusTextEl.textContent = 'Error checking status';
+    hookStatusDetailsEl.textContent = String(error);
+  }
+}
+
+async function installHooks() {
+  installHooksBtnEl.disabled = true;
+  installHooksBtnEl.textContent = 'Installing...';
+
+  try {
+    const result = await window.electronAPI.installHooks();
+
+    if (result.success) {
+      showToast('Hooks installed successfully!');
+      await refreshHookStatus();
+    } else {
+      showToast(result.message, true);
+    }
+  } catch (error) {
+    showToast('Failed to install hooks: ' + String(error), true);
+  } finally {
+    installHooksBtnEl.disabled = false;
+  }
+}
+
+async function uninstallHooks() {
+  if (!confirm('Are you sure you want to uninstall the hooks? Claude Code will no longer send events to this app.')) {
+    return;
+  }
+
+  uninstallHooksBtnEl.disabled = true;
+  uninstallHooksBtnEl.textContent = 'Uninstalling...';
+
+  try {
+    const result = await window.electronAPI.uninstallHooks();
+
+    if (result.success) {
+      showToast('Hooks uninstalled successfully');
+      await refreshHookStatus();
+    } else {
+      showToast(result.message, true);
+    }
+  } catch (error) {
+    showToast('Failed to uninstall hooks: ' + String(error), true);
+  } finally {
+    uninstallHooksBtnEl.disabled = false;
+    uninstallHooksBtnEl.textContent = 'Uninstall Hooks';
+  }
+}
+
+// Event Listeners - Settings
 saveBtnEl.addEventListener('click', async () => {
   try {
     const settings = getFormSettings();
@@ -184,10 +280,14 @@ copyHookConfigEl.addEventListener('click', async () => {
   }
 });
 
+// Event Listeners - Hook Management
+installHooksBtnEl.addEventListener('click', installHooks);
+uninstallHooksBtnEl.addEventListener('click', uninstallHooks);
+refreshStatusBtnEl.addEventListener('click', refreshHookStatus);
+
 // External links
 document.getElementById('elevenlabs-link')?.addEventListener('click', (e) => {
   e.preventDefault();
-  // Would use shell.openExternal in real app
   window.electronAPI.showNotification('ElevenLabs', 'Visit elevenlabs.io to get your API key');
 });
 
