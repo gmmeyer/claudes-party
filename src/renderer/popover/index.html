@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';">
+  <title>Claude's Party</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="popover-container">
+    <header class="header">
+      <div class="header-left">
+        <span class="logo">🎉</span>
+        <h1>Claude's Party</h1>
+      </div>
+      <div class="header-right">
+        <button class="icon-btn" id="settings-btn" title="Settings">⚙️</button>
+        <button class="icon-btn" id="minimize-btn" title="Minimize">−</button>
+      </div>
+    </header>
+
+    <main class="sessions-container">
+      <div id="no-sessions" class="no-sessions">
+        <div class="no-sessions-icon">🔍</div>
+        <p>No active Claude sessions</p>
+        <p class="hint">Sessions will appear here when Claude Code is running</p>
+      </div>
+
+      <div id="sessions-list" class="sessions-list"></div>
+    </main>
+
+    <footer class="footer">
+      <div class="server-status">
+        <span class="status-dot" id="server-status-dot"></span>
+        <span id="server-status-text">Hook server ready</span>
+      </div>
+      <div class="voice-controls" id="voice-controls" style="display: none;">
+        <button class="voice-btn" id="voice-btn" title="Voice Input">🎤</button>
+        <span id="voice-status"></span>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Input Modal -->
+  <div id="input-modal" class="modal hidden">
+    <div class="modal-content">
+      <h3>Send Input to Claude</h3>
+      <p id="input-session-info"></p>
+      <textarea id="input-text" placeholder="Type your response..."></textarea>
+      <div class="modal-buttons">
+        <button id="input-cancel" class="btn btn-secondary">Cancel</button>
+        <button id="input-send" class="btn btn-primary">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>
