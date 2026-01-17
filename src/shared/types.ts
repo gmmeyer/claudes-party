@@ -48,6 +48,21 @@ export interface AppSettings {
   twilioPhoneNumber: string;
   userPhoneNumber: string;
   smsNotificationsEnabled: boolean;
+  smsReplyEnabled: boolean;
+  twilioWebhookUrl: string;
+
+  // Telegram settings
+  telegramBotToken: string;
+  telegramChatId: string;
+  telegramNotificationsEnabled: boolean;
+  telegramReplyEnabled: boolean;
+
+  // Discord settings
+  discordWebhookUrl: string;
+  discordBotToken: string;
+  discordChannelId: string;
+  discordNotificationsEnabled: boolean;
+  discordReplyEnabled: boolean;
 
   // Notification settings
   desktopNotificationsEnabled: boolean;
@@ -75,6 +90,19 @@ export const DEFAULT_SETTINGS: AppSettings = {
   twilioPhoneNumber: '',
   userPhoneNumber: '',
   smsNotificationsEnabled: false,
+  smsReplyEnabled: true,
+  twilioWebhookUrl: '',
+
+  telegramBotToken: '',
+  telegramChatId: '',
+  telegramNotificationsEnabled: false,
+  telegramReplyEnabled: true,
+
+  discordWebhookUrl: '',
+  discordBotToken: '',
+  discordChannelId: '',
+  discordNotificationsEnabled: false,
+  discordReplyEnabled: true,
 
   desktopNotificationsEnabled: true,
   notifyOnSessionEnd: true,
@@ -106,9 +134,24 @@ export const IPC_CHANNELS = {
   VOICE_INPUT_RESULT: 'voice-input-result',
   SPEAK_TEXT: 'speak-text',
 
-  // SMS
+  // SMS / Twilio
   SEND_SMS: 'send-sms',
   SMS_RECEIVED: 'sms-received',
+  SETUP_TWILIO: 'setup-twilio',
+  GET_TWILIO_NUMBERS: 'get-twilio-numbers',
+  BUY_TWILIO_NUMBER: 'buy-twilio-number',
+
+  // Telegram
+  SEND_TELEGRAM: 'send-telegram',
+  TELEGRAM_RECEIVED: 'telegram-received',
+  SETUP_TELEGRAM: 'setup-telegram',
+  TEST_TELEGRAM: 'test-telegram',
+
+  // Discord
+  SEND_DISCORD: 'send-discord',
+  DISCORD_RECEIVED: 'discord-received',
+  SETUP_DISCORD: 'setup-discord',
+  TEST_DISCORD: 'test-discord',
 
   // Window controls
   OPEN_SETTINGS: 'open-settings',
@@ -149,4 +192,57 @@ export interface SmsMessage {
   body: string;
   timestamp: number;
   direction: 'inbound' | 'outbound';
+}
+
+// Telegram message
+export interface TelegramMessage {
+  chatId: string;
+  messageId?: number;
+  text: string;
+  timestamp: number;
+  direction: 'inbound' | 'outbound';
+  username?: string;
+}
+
+// Discord message
+export interface DiscordMessage {
+  channelId: string;
+  messageId?: string;
+  content: string;
+  timestamp: number;
+  direction: 'inbound' | 'outbound';
+  username?: string;
+}
+
+// Twilio phone number info
+export interface TwilioPhoneNumber {
+  phoneNumber: string;
+  friendlyName: string;
+  capabilities: {
+    sms: boolean;
+    voice: boolean;
+    mms: boolean;
+  };
+  country: string;
+}
+
+// Available phone number for purchase
+export interface TwilioAvailableNumber {
+  phoneNumber: string;
+  friendlyName: string;
+  locality?: string;
+  region?: string;
+  country: string;
+  capabilities: {
+    sms: boolean;
+    voice: boolean;
+    mms: boolean;
+  };
+}
+
+// Setup result types
+export interface SetupResult {
+  success: boolean;
+  message: string;
+  data?: Record<string, unknown>;
 }

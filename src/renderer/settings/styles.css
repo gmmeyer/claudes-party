@@ -419,6 +419,85 @@ body {
   margin-bottom: 12px;
 }
 
+/* Input with button */
+.input-with-button {
+  display: flex;
+  gap: 8px;
+}
+
+.input-with-button input {
+  flex: 1;
+}
+
+.btn-small {
+  padding: 8px 12px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* Button row */
+.button-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+/* Status message */
+.status-message {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  animation: fadeIn 0.3s ease;
+}
+
+.status-message.success {
+  background: rgba(46, 204, 113, 0.15);
+  border: 1px solid rgba(46, 204, 113, 0.3);
+  color: #2ecc71;
+}
+
+.status-message.error {
+  background: rgba(231, 76, 60, 0.15);
+  border: 1px solid rgba(231, 76, 60, 0.3);
+  color: #e74c3c;
+}
+
+.status-message.hidden {
+  display: none;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Advanced Discord */
+.advanced-discord {
+  margin-top: 16px;
+  margin-bottom: 16px;
+}
+
+.advanced-discord summary {
+  font-size: 13px;
+  color: #888;
+  cursor: pointer;
+  padding: 8px 0;
+  outline: none;
+}
+
+.advanced-discord summary:hover {
+  color: #aaa;
+}
+
+.advanced-discord[open] summary {
+  margin-bottom: 12px;
+}
+
+.advanced-discord .form-group {
+  margin-left: 16px;
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;

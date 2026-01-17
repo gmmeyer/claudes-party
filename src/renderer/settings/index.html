@@ -68,8 +68,11 @@
 
         <div class="form-group">
           <label for="twilio-phone-number">Twilio Phone Number</label>
-          <input type="tel" id="twilio-phone-number" placeholder="+1234567890">
-          <span class="hint">Your Twilio phone number (with country code)</span>
+          <div class="input-with-button">
+            <input type="tel" id="twilio-phone-number" placeholder="+1234567890">
+            <button id="setup-twilio-btn" class="btn btn-secondary btn-small">Auto Setup</button>
+          </div>
+          <span class="hint">Your Twilio phone number (with country code). Click Auto Setup to configure automatically.</span>
         </div>
 
         <div class="form-group">
@@ -78,13 +81,124 @@
           <span class="hint">Where to send SMS notifications</span>
         </div>
 
-        <div class="toggle-group">
-          <label class="toggle">
-            <input type="checkbox" id="sms-notifications-enabled">
-            <span class="toggle-slider"></span>
-          </label>
-          <span>Enable SMS Notifications</span>
+        <div class="form-group">
+          <label for="twilio-webhook-url">Webhook URL (for replies)</label>
+          <input type="text" id="twilio-webhook-url" placeholder="https://your-domain.com/sms">
+          <span class="hint">Use ngrok or similar for local development. Leave empty to skip webhook setup.</span>
         </div>
+
+        <div class="form-row">
+          <div class="toggle-group">
+            <label class="toggle">
+              <input type="checkbox" id="sms-notifications-enabled">
+              <span class="toggle-slider"></span>
+            </label>
+            <span>Enable SMS Notifications</span>
+          </div>
+
+          <div class="toggle-group">
+            <label class="toggle">
+              <input type="checkbox" id="sms-reply-enabled">
+              <span class="toggle-slider"></span>
+            </label>
+            <span>Enable SMS Replies</span>
+          </div>
+        </div>
+
+        <div id="twilio-status" class="status-message hidden"></div>
+      </section>
+
+      <!-- Telegram Section -->
+      <section class="settings-section">
+        <h2>Telegram</h2>
+        <p class="section-desc">Receive notifications and control Claude via Telegram bot</p>
+
+        <div class="form-group">
+          <label for="telegram-bot-token">Bot Token</label>
+          <input type="password" id="telegram-bot-token" placeholder="123456789:ABCdefGHIjklMNOpqrsTUVwxyz">
+          <span class="hint">Create a bot with @BotFather on Telegram to get your token</span>
+        </div>
+
+        <div class="form-group">
+          <label for="telegram-chat-id">Chat ID</label>
+          <div class="input-with-button">
+            <input type="text" id="telegram-chat-id" placeholder="Auto-detected when you message the bot">
+            <button id="setup-telegram-btn" class="btn btn-secondary btn-small">Setup</button>
+          </div>
+          <span class="hint">Send a message to your bot and click Setup to auto-detect</span>
+        </div>
+
+        <div class="form-row">
+          <div class="toggle-group">
+            <label class="toggle">
+              <input type="checkbox" id="telegram-notifications-enabled">
+              <span class="toggle-slider"></span>
+            </label>
+            <span>Enable Notifications</span>
+          </div>
+
+          <div class="toggle-group">
+            <label class="toggle">
+              <input type="checkbox" id="telegram-reply-enabled">
+              <span class="toggle-slider"></span>
+            </label>
+            <span>Enable Replies</span>
+          </div>
+        </div>
+
+        <button id="test-telegram-btn" class="btn btn-secondary">Test Telegram</button>
+        <div id="telegram-status" class="status-message hidden"></div>
+      </section>
+
+      <!-- Discord Section -->
+      <section class="settings-section">
+        <h2>Discord</h2>
+        <p class="section-desc">Receive notifications and control Claude via Discord</p>
+
+        <div class="form-group">
+          <label for="discord-webhook-url">Webhook URL (for notifications)</label>
+          <input type="text" id="discord-webhook-url" placeholder="https://discord.com/api/webhooks/...">
+          <span class="hint">Create a webhook in your Discord channel settings</span>
+        </div>
+
+        <details class="advanced-discord">
+          <summary>Advanced: Bot for Replies</summary>
+          <div class="form-group">
+            <label for="discord-bot-token">Bot Token (optional)</label>
+            <input type="password" id="discord-bot-token" placeholder="Your Discord bot token">
+            <span class="hint">Required for receiving replies. Create a bot at discord.com/developers</span>
+          </div>
+
+          <div class="form-group">
+            <label for="discord-channel-id">Channel ID</label>
+            <input type="text" id="discord-channel-id" placeholder="Channel ID for the bot to monitor">
+            <span class="hint">Enable Developer Mode in Discord, right-click channel, Copy ID</span>
+          </div>
+        </details>
+
+        <div class="form-row">
+          <div class="toggle-group">
+            <label class="toggle">
+              <input type="checkbox" id="discord-notifications-enabled">
+              <span class="toggle-slider"></span>
+            </label>
+            <span>Enable Notifications</span>
+          </div>
+
+          <div class="toggle-group">
+            <label class="toggle">
+              <input type="checkbox" id="discord-reply-enabled">
+              <span class="toggle-slider"></span>
+            </label>
+            <span>Enable Replies</span>
+          </div>
+        </div>
+
+        <div class="button-row">
+          <button id="setup-discord-btn" class="btn btn-secondary">Setup Discord</button>
+          <button id="test-discord-btn" class="btn btn-secondary">Test Discord</button>
+        </div>
+        <div id="discord-status" class="status-message hidden"></div>
       </section>
 
       <!-- Notifications Section -->

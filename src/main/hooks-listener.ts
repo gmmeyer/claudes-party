@@ -6,6 +6,8 @@ import { getSettings, saveSettings } from './store';
 import { showNotification } from './notifications';
 import { speakText } from './elevenlabs';
 import { sendSms } from './twilio';
+import { sendTelegram } from './telegram';
+import { sendDiscord } from './discord';
 
 let server: Server | null = null;
 let popoverWindow: BrowserWindow | null = null;
@@ -49,6 +51,14 @@ async function handleHookEvent(event: HookEvent): Promise<void> {
         if (settings.smsNotificationsEnabled && settings.twilioAccountSid) {
           await sendSms(message);
         }
+
+        if (settings.telegramNotificationsEnabled && settings.telegramBotToken) {
+          await sendTelegram(message);
+        }
+
+        if (settings.discordNotificationsEnabled && (settings.discordWebhookUrl || settings.discordBotToken)) {
+          await sendDiscord(message);
+        }
       }
       break;
 
@@ -67,6 +77,14 @@ async function handleHookEvent(event: HookEvent): Promise<void> {
         if (settings.smsNotificationsEnabled && settings.twilioAccountSid) {
           await sendSms(`Claude: ${message}`);
         }
+
+        if (settings.telegramNotificationsEnabled && settings.telegramBotToken) {
+          await sendTelegram(`*Claude:* ${message}`);
+        }
+
+        if (settings.discordNotificationsEnabled && (settings.discordWebhookUrl || settings.discordBotToken)) {
+          await sendDiscord(`**Claude:** ${message}`);
+        }
       }
       break;
 
@@ -76,6 +94,18 @@ async function handleHookEvent(event: HookEvent): Promise<void> {
 
         if (settings.desktopNotificationsEnabled) {
           showNotification('Claude Stopped', message);
+        }
+
+        if (settings.smsNotificationsEnabled && settings.twilioAccountSid) {
+          await sendSms(message);
+        }
+
+        if (settings.telegramNotificationsEnabled && settings.telegramBotToken) {
+          await sendTelegram(message);
+        }
+
+        if (settings.discordNotificationsEnabled && (settings.discordWebhookUrl || settings.discordBotToken)) {
+          await sendDiscord(message);
         }
       }
       break;
