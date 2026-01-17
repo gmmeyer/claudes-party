@@ -1,4 +1,4 @@
-import { getSettings, saveSettings } from './store';
+import { getSettings } from './store';
 import * as https from 'https';
 import { BrowserWindow } from 'electron';
 import { IPC_CHANNELS, DiscordMessage, SetupResult } from '../shared/types';
@@ -8,7 +8,6 @@ import { getSessions, getSession } from './sessions';
 let mainWindow: BrowserWindow | null = null;
 let gatewayConnection: WebSocketLike | null = null;
 let heartbeatInterval: NodeJS.Timeout | null = null;
-let lastSequence: number | null = null;
 
 // Simple WebSocket-like interface for the Discord gateway
 interface WebSocketLike {
@@ -180,41 +179,6 @@ async function getBotInfo(botToken: string): Promise<{ id: string; username: str
   });
 }
 
-// Get gateway URL for WebSocket connection
-async function getGatewayUrl(botToken: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const options = {
-      hostname: 'discord.com',
-      port: 443,
-      path: '/api/v10/gateway/bot',
-      method: 'GET',
-      headers: {
-        Authorization: `Bot ${botToken}`,
-      },
-    };
-
-    const req = https.request(options, (res) => {
-      let data = '';
-      res.on('data', (chunk: Buffer) => (data += chunk.toString()));
-      res.on('end', () => {
-        if (res.statusCode === 200) {
-          try {
-            const response = JSON.parse(data) as { url: string };
-            resolve(response.url);
-          } catch (e) {
-            reject(new Error('Failed to parse Discord response'));
-          }
-        } else {
-          reject(new Error(`Discord API error: ${res.statusCode}`));
-        }
-      });
-    });
-
-    req.on('error', reject);
-    req.end();
-  });
-}
-
 // Connect to Discord Gateway for receiving messages
 // Note: This uses a simplified HTTP-based polling approach for desktop apps
 // For a full implementation, you would use a WebSocket library
@@ -328,7 +292,7 @@ async function getChannelMessages(
   channelId: string,
   afterId?: string
 ): Promise<DiscordApiMessage[]> {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve, _reject) => {
     let path = `/api/v10/channels/${channelId}/messages?limit=10`;
     if (afterId) {
       path += `&after=${afterId}`;
@@ -385,18 +349,63 @@ export function stopDiscordBot(): void {
   console.log('Discord bot stopped');
 }
 
+// Find session by full or partial ID
+function findSessionById(
+  idPrefix: string
+): { id: string; session: ReturnType<typeof getSession> } | null {
+  // Try exact match first
+  const exactSession = getSession(idPrefix);
+  if (exactSession) {
+    return { id: idPrefix, session: exactSession };
+  }
+
+  // Try prefix match
+  const sessions = getSessions();
+  const matches = sessions.filter((s) => s.id.startsWith(idPrefix));
+
+  if (matches.length === 1) {
+    return { id: matches[0].id, session: matches[0] };
+  }
+
+  if (matches.length > 1) {
+    return null; // Ambiguous
+  }
+
+  return null;
+}
+
 // Handle incoming Discord message as Claude input
 async function handleIncomingDiscordMessage(message: DiscordMessage): Promise<void> {
   const content = message.content.trim();
 
-  // Check for command format
+  // Check for command format: !session <id> <input> or just the input
   let targetSessionId: string | undefined;
   let input: string = content;
 
   const sessionMatch = content.match(/^!session\s+(\w+)\s+(.+)$/s);
   if (sessionMatch) {
-    targetSessionId = sessionMatch[1];
+    const idPrefix = sessionMatch[1];
     input = sessionMatch[2].trim();
+
+    // Find session by prefix
+    const found = findSessionById(idPrefix);
+    if (found) {
+      targetSessionId = found.id;
+    } else {
+      const sessions = getSessions();
+      const matches = sessions.filter((s) => s.id.startsWith(idPrefix));
+      if (matches.length > 1) {
+        await sendDiscord(
+          `Multiple sessions match "${idPrefix}":\n` +
+            matches
+              .map((s) => `• \`${s.id.substring(0, 8)}\` - ${s.workingDirectory?.split('/').pop()}`)
+              .join('\n')
+        );
+        return;
+      }
+      await sendDiscord(`No session found matching "${idPrefix}"`);
+      return;
+    }
   }
 
   // Handle special commands
@@ -406,10 +415,22 @@ async function handleIncomingDiscordMessage(message: DiscordMessage): Promise<vo
       await sendDiscord('No active Claude sessions.');
     } else {
       const statusText = sessions
-        .map(
-          (s) =>
-            `**${s.id}** (${s.status})\n  Dir: \`${s.workingDirectory}\`${s.currentTool ? `\n  Tool: ${s.currentTool}` : ''}`
-        )
+        .map((s) => {
+          const shortId = s.id.substring(0, 8);
+          const dirName = s.workingDirectory?.split('/').pop() || 'unknown';
+          const statusIcon =
+            s.status === 'waiting'
+              ? ':hourglass:'
+              : s.status === 'active'
+                ? ':arrows_counterclockwise:'
+                : ':stop_button:';
+          return (
+            `${statusIcon} **${shortId}** (${s.status})\n` +
+            `    :file_folder: \`${dirName}\`\n` +
+            (s.currentTool ? `    :wrench: ${s.currentTool}\n` : '') +
+            `    _\`!session ${shortId} <msg>\`_`
+          );
+        })
         .join('\n\n');
       await sendDiscord(`**Active Sessions:**\n\n${statusText}`);
     }
@@ -419,15 +440,23 @@ async function handleIncomingDiscordMessage(message: DiscordMessage): Promise<vo
   if (content === '!help') {
     await sendDiscord(
       "**Claude's Party - Discord Commands:**\n\n" +
-        '`!status` - Show active sessions\n' +
+        '`!status` - Show active sessions with IDs\n' +
         '`!session <id> <message>` - Send to specific session\n' +
-        'Or just send a message starting with `!claude` to reply to the waiting session'
+        '`!claude <message>` - Send to waiting/recent session\n' +
+        '\n_Or just send a message to reply to the waiting session._\n\n' +
+        '**Examples:**\n' +
+        '`!session abc123 yes, continue`\n' +
+        '`!claude please fix the bug`'
     );
     return;
   }
 
-  // Only process messages starting with !claude or command
-  if (!content.startsWith('!claude ') && !content.startsWith('!session ')) {
+  // Skip other commands that start with !
+  if (
+    content.startsWith('!') &&
+    !content.startsWith('!claude ') &&
+    !content.startsWith('!session ')
+  ) {
     return;
   }
 
@@ -453,7 +482,9 @@ async function handleIncomingDiscordMessage(message: DiscordMessage): Promise<vo
   }
 
   if (!targetSessionId) {
-    await sendDiscord('No active Claude session found.');
+    await sendDiscord(
+      'No active Claude session found.\n\nUse `!status` to see available sessions.'
+    );
     return;
   }
 
@@ -465,13 +496,14 @@ async function handleIncomingDiscordMessage(message: DiscordMessage): Promise<vo
 
   // Send input to session
   const success = sendInputToSession(targetSessionId, input);
+  const shortId = targetSessionId.substring(0, 8);
 
   if (success) {
     console.log(`Discord input sent to session ${targetSessionId}: ${input}`);
     const truncatedInput = input.length > 50 ? input.substring(0, 50) + '...' : input;
-    await sendDiscord(`Sent to Claude: "${truncatedInput}"`);
+    await sendDiscord(`:white_check_mark: Sent to **${shortId}**: "${truncatedInput}"`);
   } else {
-    await sendDiscord('Failed to send your message to Claude.');
+    await sendDiscord(`:x: Failed to send to **${shortId}**.`);
   }
 }
 

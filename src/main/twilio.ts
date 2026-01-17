@@ -106,9 +106,9 @@ export async function getTwilioPhoneNumbers(): Promise<TwilioPhoneNumber[]> {
   }
 
   return new Promise((resolve, reject) => {
-    const auth = Buffer.from(
-      `${settings.twilioAccountSid}:${settings.twilioAuthToken}`
-    ).toString('base64');
+    const auth = Buffer.from(`${settings.twilioAccountSid}:${settings.twilioAuthToken}`).toString(
+      'base64'
+    );
 
     const options = {
       hostname: 'api.twilio.com',
@@ -166,9 +166,9 @@ export async function searchAvailableNumbers(
   }
 
   return new Promise((resolve, reject) => {
-    const auth = Buffer.from(
-      `${settings.twilioAccountSid}:${settings.twilioAuthToken}`
-    ).toString('base64');
+    const auth = Buffer.from(`${settings.twilioAccountSid}:${settings.twilioAuthToken}`).toString(
+      'base64'
+    );
 
     const options = {
       hostname: 'api.twilio.com',
@@ -228,9 +228,9 @@ export async function buyPhoneNumber(phoneNumber: string): Promise<TwilioPhoneNu
   }
 
   return new Promise((resolve, reject) => {
-    const auth = Buffer.from(
-      `${settings.twilioAccountSid}:${settings.twilioAuthToken}`
-    ).toString('base64');
+    const auth = Buffer.from(`${settings.twilioAccountSid}:${settings.twilioAuthToken}`).toString(
+      'base64'
+    );
 
     const postData = new URLSearchParams({
       PhoneNumber: phoneNumber,
@@ -282,10 +282,7 @@ export async function buyPhoneNumber(phoneNumber: string): Promise<TwilioPhoneNu
 }
 
 // Configure webhook URL for a phone number
-export async function configureWebhook(
-  phoneNumberSid: string,
-  webhookUrl: string
-): Promise<void> {
+export async function configureWebhook(phoneNumberSid: string, webhookUrl: string): Promise<void> {
   const settings = getSettings();
 
   if (!settings.twilioAccountSid || !settings.twilioAuthToken) {
@@ -293,9 +290,9 @@ export async function configureWebhook(
   }
 
   return new Promise((resolve, reject) => {
-    const auth = Buffer.from(
-      `${settings.twilioAccountSid}:${settings.twilioAuthToken}`
-    ).toString('base64');
+    const auth = Buffer.from(`${settings.twilioAccountSid}:${settings.twilioAuthToken}`).toString(
+      'base64'
+    );
 
     const postData = new URLSearchParams({
       SmsUrl: webhookUrl,
@@ -341,9 +338,9 @@ async function getPhoneNumberSid(phoneNumber: string): Promise<string | null> {
   }
 
   return new Promise((resolve, reject) => {
-    const auth = Buffer.from(
-      `${settings.twilioAccountSid}:${settings.twilioAuthToken}`
-    ).toString('base64');
+    const auth = Buffer.from(`${settings.twilioAccountSid}:${settings.twilioAuthToken}`).toString(
+      'base64'
+    );
 
     const encodedNumber = encodeURIComponent(phoneNumber);
     const options = {

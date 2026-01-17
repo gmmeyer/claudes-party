@@ -67,7 +67,9 @@ const telegramChatIdEl = document.getElementById('telegram-chat-id') as HTMLInpu
 const telegramNotificationsEnabledEl = document.getElementById(
   'telegram-notifications-enabled'
 ) as HTMLInputElement;
-const telegramReplyEnabledEl = document.getElementById('telegram-reply-enabled') as HTMLInputElement;
+const telegramReplyEnabledEl = document.getElementById(
+  'telegram-reply-enabled'
+) as HTMLInputElement;
 const setupTelegramBtnEl = document.getElementById('setup-telegram-btn') as HTMLButtonElement;
 const testTelegramBtnEl = document.getElementById('test-telegram-btn') as HTMLButtonElement;
 const telegramStatusEl = document.getElementById('telegram-status') as HTMLDivElement;

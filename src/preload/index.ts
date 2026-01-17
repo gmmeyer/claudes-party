@@ -70,7 +70,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   setupTwilio: (webhookUrl: string): Promise<SetupResult> =>
     ipcRenderer.invoke(IPC_CHANNELS.SETUP_TWILIO, webhookUrl) as Promise<SetupResult>,
-  getTwilioNumbers: (): Promise<{ success: boolean; numbers: TwilioPhoneNumber[]; message?: string }> =>
+  getTwilioNumbers: (): Promise<{
+    success: boolean;
+    numbers: TwilioPhoneNumber[];
+    message?: string;
+  }> =>
     ipcRenderer.invoke(IPC_CHANNELS.GET_TWILIO_NUMBERS) as Promise<{
       success: boolean;
       numbers: TwilioPhoneNumber[];
