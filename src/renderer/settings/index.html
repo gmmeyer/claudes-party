@@ -56,6 +56,22 @@
         <h2>SMS (Twilio)</h2>
         <p class="section-desc">Receive SMS notifications and respond via text</p>
 
+        <details class="instructions-box">
+          <summary>Setup Instructions</summary>
+          <div class="instructions-content">
+            <ol>
+              <li>Create a Twilio account at <strong>twilio.com</strong></li>
+              <li>Find your Account SID and Auth Token in the Twilio Console dashboard</li>
+              <li>Enter them below and click <strong>Auto Setup</strong> - this will automatically use an existing phone number or purchase one</li>
+              <li>Enter your personal phone number to receive notifications</li>
+              <li><strong>For replies:</strong> Use ngrok (<code>ngrok http 31549</code>) and enter the HTTPS URL as the webhook</li>
+            </ol>
+            <div class="reply-format">
+              <strong>Reply format:</strong> Just text your message (goes to waiting session) or <code>sessionId:message</code> for a specific session
+            </div>
+          </div>
+        </details>
+
         <div class="form-group">
           <label for="twilio-account-sid">Account SID</label>
           <input type="text" id="twilio-account-sid" placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
@@ -113,6 +129,26 @@
         <h2>Telegram</h2>
         <p class="section-desc">Receive notifications and control Claude via Telegram bot</p>
 
+        <details class="instructions-box">
+          <summary>Setup Instructions</summary>
+          <div class="instructions-content">
+            <ol>
+              <li>Open Telegram and message <strong>@BotFather</strong></li>
+              <li>Send <code>/newbot</code> and follow the prompts to create your bot</li>
+              <li>Copy the bot token and paste it below</li>
+              <li>Click <strong>Setup</strong>, then send any message to your bot</li>
+              <li>The Chat ID will be auto-detected. Click <strong>Test</strong> to verify.</li>
+            </ol>
+            <div class="reply-format">
+              <strong>Bot Commands:</strong><br>
+              <code>/status</code> - Show active sessions<br>
+              <code>/help</code> - Show available commands<br>
+              <code>/session &lt;id&gt; &lt;message&gt;</code> - Send to specific session<br>
+              Or just send a message to reply to the waiting session
+            </div>
+          </div>
+        </details>
+
         <div class="form-group">
           <label for="telegram-bot-token">Bot Token</label>
           <input type="password" id="telegram-bot-token" placeholder="123456789:ABCdefGHIjklMNOpqrsTUVwxyz">
@@ -154,6 +190,33 @@
       <section class="settings-section">
         <h2>Discord</h2>
         <p class="section-desc">Receive notifications and control Claude via Discord</p>
+
+        <details class="instructions-box">
+          <summary>Setup Instructions</summary>
+          <div class="instructions-content">
+            <strong>For notifications only (easy):</strong>
+            <ol>
+              <li>In Discord, right-click your channel → Edit Channel → Integrations → Webhooks</li>
+              <li>Create a webhook, copy the URL, and paste it below</li>
+            </ol>
+            <strong>For replies (advanced):</strong>
+            <ol>
+              <li>Go to <strong>discord.com/developers/applications</strong></li>
+              <li>Create a New Application → Bot → Copy the token</li>
+              <li>Enable "Message Content Intent" under Privileged Gateway Intents</li>
+              <li>Invite bot to your server with "Read Messages" and "Send Messages" permissions</li>
+              <li>In Discord Settings → Advanced → Enable Developer Mode</li>
+              <li>Right-click your channel → Copy ID</li>
+            </ol>
+            <div class="reply-format">
+              <strong>Bot Commands:</strong><br>
+              <code>!status</code> - Show active sessions<br>
+              <code>!help</code> - Show available commands<br>
+              <code>!claude &lt;message&gt;</code> - Send to waiting session<br>
+              <code>!session &lt;id&gt; &lt;message&gt;</code> - Send to specific session
+            </div>
+          </div>
+        </details>
 
         <div class="form-group">
           <label for="discord-webhook-url">Webhook URL (for notifications)</label>
