@@ -4,9 +4,10 @@ import { IPC_CHANNELS, AppSettings, ClaudeSession, SmsMessage, HookStatus } from
 // Expose safe APIs to renderer
 contextBridge.exposeInMainWorld('electronAPI', {
   // Settings
-  getSettings: (): Promise<AppSettings> => ipcRenderer.invoke(IPC_CHANNELS.GET_SETTINGS),
+  getSettings: (): Promise<AppSettings> =>
+    ipcRenderer.invoke(IPC_CHANNELS.GET_SETTINGS) as Promise<AppSettings>,
   saveSettings: (settings: Partial<AppSettings>): Promise<AppSettings> =>
-    ipcRenderer.invoke(IPC_CHANNELS.SAVE_SETTINGS, settings),
+    ipcRenderer.invoke(IPC_CHANNELS.SAVE_SETTINGS, settings) as Promise<AppSettings>,
   onSettingsUpdated: (callback: (settings: AppSettings) => void) => {
     const handler = (_: Electron.IpcRendererEvent, settings: AppSettings) => callback(settings);
     ipcRenderer.on(IPC_CHANNELS.SETTINGS_UPDATED, handler);
@@ -14,7 +15,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 
   // Sessions
-  getSessions: (): Promise<ClaudeSession[]> => ipcRenderer.invoke(IPC_CHANNELS.GET_SESSIONS),
+  getSessions: (): Promise<ClaudeSession[]> =>
+    ipcRenderer.invoke(IPC_CHANNELS.GET_SESSIONS) as Promise<ClaudeSession[]>,
   onSessionsUpdated: (callback: (sessions: ClaudeSession[]) => void) => {
     const handler = (_: Electron.IpcRendererEvent, sessions: ClaudeSession[]) => callback(sessions);
     ipcRenderer.on(IPC_CHANNELS.SESSIONS_UPDATED, handler);
@@ -28,13 +30,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Voice
   startVoiceInput: (sessionId: string): Promise<boolean> =>
-    ipcRenderer.invoke(IPC_CHANNELS.START_VOICE_INPUT, sessionId),
+    ipcRenderer.invoke(IPC_CHANNELS.START_VOICE_INPUT, sessionId) as Promise<boolean>,
   stopVoiceInput: (): Promise<{ sessionId: string | null }> =>
-    ipcRenderer.invoke(IPC_CHANNELS.STOP_VOICE_INPUT),
+    ipcRenderer.invoke(IPC_CHANNELS.STOP_VOICE_INPUT) as Promise<{
+      sessionId: string | null;
+    }>,
   sendVoiceInputResult: (sessionId: string, transcript: string) =>
     ipcRenderer.send(IPC_CHANNELS.VOICE_INPUT_RESULT, sessionId, transcript),
   speakText: (text: string): Promise<boolean> =>
-    ipcRenderer.invoke(IPC_CHANNELS.SPEAK_TEXT, text),
+    ipcRenderer.invoke(IPC_CHANNELS.SPEAK_TEXT, text) as Promise<boolean>,
   onStartRecording: (callback: (sessionId: string) => void) => {
     const handler = (_: Electron.IpcRendererEvent, sessionId: string) => callback(sessionId);
     ipcRenderer.on('start-recording', handler);
@@ -48,7 +52,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // SMS
   sendSms: (message: string, toNumber?: string): Promise<boolean> =>
-    ipcRenderer.invoke(IPC_CHANNELS.SEND_SMS, message, toNumber),
+    ipcRenderer.invoke(IPC_CHANNELS.SEND_SMS, message, toNumber) as Promise<boolean>,
   onSmsReceived: (callback: (message: SmsMessage) => void) => {
     const handler = (_: Electron.IpcRendererEvent, message: SmsMessage) => callback(message);
     ipcRenderer.on(IPC_CHANNELS.SMS_RECEIVED, handler);
@@ -57,7 +61,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Input
   sendInputToSession: (sessionId: string, input: string): Promise<boolean> =>
-    ipcRenderer.invoke(IPC_CHANNELS.SEND_INPUT_TO_SESSION, sessionId, input),
+    ipcRenderer.invoke(IPC_CHANNELS.SEND_INPUT_TO_SESSION, sessionId, input) as Promise<boolean>,
 
   // Window controls
   openSettings: () => ipcRenderer.send(IPC_CHANNELS.OPEN_SETTINGS),
@@ -70,11 +74,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Claude Code hook management
   installHooks: (): Promise<{ success: boolean; message: string }> =>
-    ipcRenderer.invoke(IPC_CHANNELS.INSTALL_HOOKS),
+    ipcRenderer.invoke(IPC_CHANNELS.INSTALL_HOOKS) as Promise<{
+      success: boolean;
+      message: string;
+    }>,
   uninstallHooks: (): Promise<{ success: boolean; message: string }> =>
-    ipcRenderer.invoke(IPC_CHANNELS.UNINSTALL_HOOKS),
+    ipcRenderer.invoke(IPC_CHANNELS.UNINSTALL_HOOKS) as Promise<{
+      success: boolean;
+      message: string;
+    }>,
   getHookStatus: (): Promise<HookStatus> =>
-    ipcRenderer.invoke(IPC_CHANNELS.GET_HOOK_STATUS)
+    ipcRenderer.invoke(IPC_CHANNELS.GET_HOOK_STATUS) as Promise<HookStatus>,
 });
 
 // Type declaration for renderer

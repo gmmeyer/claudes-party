@@ -1,4 +1,4 @@
-import { BrowserWindow, screen, app } from 'electron';
+import { BrowserWindow, screen } from 'electron';
 import * as path from 'path';
 import { getSettings } from './store';
 
@@ -50,14 +50,14 @@ export function createPopoverWindow(): BrowserWindow {
     webPreferences: {
       preload: path.join(__dirname, '..', 'preload', 'index.js'),
       contextIsolation: true,
-      nodeIntegration: false
-    }
+      nodeIntegration: false,
+    },
   });
 
   popoverWindow.setOpacity(settings.popoverOpacity);
 
   // Load the popover HTML
-  popoverWindow.loadFile(path.join(__dirname, '..', 'renderer', 'popover', 'index.html'));
+  void popoverWindow.loadFile(path.join(__dirname, '..', 'renderer', 'popover', 'index.html'));
 
   popoverWindow.once('ready-to-show', () => {
     popoverWindow?.show();
@@ -91,11 +91,11 @@ export function createSettingsWindow(): BrowserWindow {
     webPreferences: {
       preload: path.join(__dirname, '..', 'preload', 'index.js'),
       contextIsolation: true,
-      nodeIntegration: false
-    }
+      nodeIntegration: false,
+    },
   });
 
-  settingsWindow.loadFile(path.join(__dirname, '..', 'renderer', 'settings', 'index.html'));
+  void settingsWindow.loadFile(path.join(__dirname, '..', 'renderer', 'settings', 'index.html'));
 
   // Remove menu bar on Windows/Linux
   settingsWindow.setMenuBarVisibility(false);

@@ -35,9 +35,13 @@ const twilioAccountSidEl = document.getElementById('twilio-account-sid') as HTML
 const twilioAuthTokenEl = document.getElementById('twilio-auth-token') as HTMLInputElement;
 const twilioPhoneNumberEl = document.getElementById('twilio-phone-number') as HTMLInputElement;
 const userPhoneNumberEl = document.getElementById('user-phone-number') as HTMLInputElement;
-const smsNotificationsEnabledEl = document.getElementById('sms-notifications-enabled') as HTMLInputElement;
+const smsNotificationsEnabledEl = document.getElementById(
+  'sms-notifications-enabled'
+) as HTMLInputElement;
 
-const desktopNotificationsEnabledEl = document.getElementById('desktop-notifications-enabled') as HTMLInputElement;
+const desktopNotificationsEnabledEl = document.getElementById(
+  'desktop-notifications-enabled'
+) as HTMLInputElement;
 const notifyOnSessionEndEl = document.getElementById('notify-on-session-end') as HTMLInputElement;
 const notifyOnErrorEl = document.getElementById('notify-on-error') as HTMLInputElement;
 const notifyOnWaitingEl = document.getElementById('notify-on-waiting') as HTMLInputElement;
@@ -119,7 +123,7 @@ function getFormSettings(): Partial<AppSettings> {
     popoverOpacity: parseInt(popoverOpacityEl.value) / 100,
     alwaysOnTop: alwaysOnTopEl.checked,
 
-    hookServerPort: parseInt(hookServerPortEl.value)
+    hookServerPort: parseInt(hookServerPortEl.value),
   };
 }
 
@@ -200,7 +204,11 @@ async function installHooks() {
 }
 
 async function uninstallHooks() {
-  if (!confirm('Are you sure you want to uninstall the hooks? Claude Code will no longer send events to this app.')) {
+  if (
+    !confirm(
+      'Are you sure you want to uninstall the hooks? Claude Code will no longer send events to this app.'
+    )
+  ) {
     return;
   }
 
@@ -225,42 +233,46 @@ async function uninstallHooks() {
 }
 
 // Event Listeners - Settings
-saveBtnEl.addEventListener('click', async () => {
-  try {
-    const settings = getFormSettings();
-    await window.electronAPI.saveSettings(settings);
-    showToast('Settings saved successfully');
-  } catch (error) {
-    showToast('Failed to save settings', true);
-    console.error(error);
-  }
+saveBtnEl.addEventListener('click', () => {
+  void (async () => {
+    try {
+      const settings = getFormSettings();
+      await window.electronAPI.saveSettings(settings);
+      showToast('Settings saved successfully');
+    } catch (error) {
+      showToast('Failed to save settings', true);
+      console.error(error);
+    }
+  })();
 });
 
-resetBtnEl.addEventListener('click', async () => {
-  if (confirm('Are you sure you want to reset all settings to defaults?')) {
-    const defaultSettings: AppSettings = {
-      elevenLabsApiKey: '',
-      elevenLabsVoiceId: 'EXAVITQu4vr4xnSDxMaL',
-      voiceInputEnabled: false,
-      voiceOutputEnabled: false,
-      twilioAccountSid: '',
-      twilioAuthToken: '',
-      twilioPhoneNumber: '',
-      userPhoneNumber: '',
-      smsNotificationsEnabled: false,
-      desktopNotificationsEnabled: true,
-      notifyOnSessionEnd: true,
-      notifyOnError: true,
-      notifyOnWaitingForInput: true,
-      popoverPosition: 'top-right',
-      popoverOpacity: 0.95,
-      alwaysOnTop: true,
-      hookServerPort: 31548
-    };
-    await window.electronAPI.saveSettings(defaultSettings);
-    applySettingsToForm(defaultSettings);
-    showToast('Settings reset to defaults');
-  }
+resetBtnEl.addEventListener('click', () => {
+  void (async () => {
+    if (confirm('Are you sure you want to reset all settings to defaults?')) {
+      const defaultSettings: AppSettings = {
+        elevenLabsApiKey: '',
+        elevenLabsVoiceId: 'EXAVITQu4vr4xnSDxMaL',
+        voiceInputEnabled: false,
+        voiceOutputEnabled: false,
+        twilioAccountSid: '',
+        twilioAuthToken: '',
+        twilioPhoneNumber: '',
+        userPhoneNumber: '',
+        smsNotificationsEnabled: false,
+        desktopNotificationsEnabled: true,
+        notifyOnSessionEnd: true,
+        notifyOnError: true,
+        notifyOnWaitingForInput: true,
+        popoverPosition: 'top-right',
+        popoverOpacity: 0.95,
+        alwaysOnTop: true,
+        hookServerPort: 31548,
+      };
+      await window.electronAPI.saveSettings(defaultSettings);
+      applySettingsToForm(defaultSettings);
+      showToast('Settings reset to defaults');
+    }
+  })();
 });
 
 popoverOpacityEl.addEventListener('input', () => {
@@ -271,19 +283,21 @@ hookServerPortEl.addEventListener('change', () => {
   updateHookConfig(parseInt(hookServerPortEl.value));
 });
 
-copyHookConfigEl.addEventListener('click', async () => {
-  try {
-    await navigator.clipboard.writeText(hookConfigEl.textContent || '');
-    showToast('Configuration copied to clipboard');
-  } catch (error) {
-    showToast('Failed to copy', true);
-  }
+copyHookConfigEl.addEventListener('click', () => {
+  void (async () => {
+    try {
+      await navigator.clipboard.writeText(hookConfigEl.textContent || '');
+      showToast('Configuration copied to clipboard');
+    } catch (error) {
+      showToast('Failed to copy', true);
+    }
+  })();
 });
 
 // Event Listeners - Hook Management
-installHooksBtnEl.addEventListener('click', installHooks);
-uninstallHooksBtnEl.addEventListener('click', uninstallHooks);
-refreshStatusBtnEl.addEventListener('click', refreshHookStatus);
+installHooksBtnEl.addEventListener('click', () => void installHooks());
+uninstallHooksBtnEl.addEventListener('click', () => void uninstallHooks());
+refreshStatusBtnEl.addEventListener('click', () => void refreshHookStatus());
 
 // External links
 document.getElementById('elevenlabs-link')?.addEventListener('click', (e) => {
@@ -292,4 +306,4 @@ document.getElementById('elevenlabs-link')?.addEventListener('click', (e) => {
 });
 
 // Initialize
-loadSettings();
+void loadSettings();

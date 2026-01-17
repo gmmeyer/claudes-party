@@ -52,7 +52,7 @@ function sendTwilioSms(
     const postData = new URLSearchParams({
       To: to,
       From: from,
-      Body: body
+      Body: body,
     }).toString();
 
     const auth = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
@@ -64,14 +64,14 @@ function sendTwilioSms(
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        'Authorization': `Basic ${auth}`,
-        'Content-Length': Buffer.byteLength(postData)
-      }
+        Authorization: `Basic ${auth}`,
+        'Content-Length': Buffer.byteLength(postData),
+      },
     };
 
     const req = https.request(options, (res) => {
       let data = '';
-      res.on('data', (chunk) => data += chunk);
+      res.on('data', (chunk: Buffer) => (data += chunk.toString()));
       res.on('end', () => {
         if (res.statusCode === 201 || res.statusCode === 200) {
           console.log('SMS sent successfully');
@@ -95,39 +95,41 @@ export function startSmsWebhookServer(port: number = 31549): void {
     smsServer.close();
   }
 
-  smsServer = createServer(async (req: IncomingMessage, res: ServerResponse) => {
-    if (req.method !== 'POST') {
-      res.writeHead(405);
-      res.end();
-      return;
-    }
-
-    try {
-      const body = await parseFormData(req);
-
-      const smsMessage: SmsMessage = {
-        from: body.From || '',
-        to: body.To || '',
-        body: body.Body || '',
-        timestamp: Date.now(),
-        direction: 'inbound'
-      };
-
-      console.log('Received SMS:', smsMessage);
-
-      // Notify renderer about received SMS
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send(IPC_CHANNELS.SMS_RECEIVED, smsMessage);
+  smsServer = createServer((req: IncomingMessage, res: ServerResponse) => {
+    void (async () => {
+      if (req.method !== 'POST') {
+        res.writeHead(405);
+        res.end();
+        return;
       }
 
-      // Respond with TwiML to acknowledge
-      res.writeHead(200, { 'Content-Type': 'text/xml' });
-      res.end('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
-    } catch (error) {
-      console.error('Error processing incoming SMS:', error);
-      res.writeHead(500);
-      res.end();
-    }
+      try {
+        const body = await parseFormData(req);
+
+        const smsMessage: SmsMessage = {
+          from: body.From || '',
+          to: body.To || '',
+          body: body.Body || '',
+          timestamp: Date.now(),
+          direction: 'inbound',
+        };
+
+        console.log('Received SMS:', smsMessage);
+
+        // Notify renderer about received SMS
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send(IPC_CHANNELS.SMS_RECEIVED, smsMessage);
+        }
+
+        // Respond with TwiML to acknowledge
+        res.writeHead(200, { 'Content-Type': 'text/xml' });
+        res.end('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
+      } catch (error) {
+        console.error('Error processing incoming SMS:', error);
+        res.writeHead(500);
+        res.end();
+      }
+    })();
   });
 
   smsServer.listen(port, '127.0.0.1', () => {
@@ -138,7 +140,7 @@ export function startSmsWebhookServer(port: number = 31549): void {
 function parseFormData(req: IncomingMessage): Promise<Record<string, string>> {
   return new Promise((resolve, reject) => {
     let body = '';
-    req.on('data', (chunk) => body += chunk.toString());
+    req.on('data', (chunk: Buffer) => (body += chunk.toString()));
     req.on('end', () => {
       try {
         const params = new URLSearchParams(body);
@@ -163,7 +165,11 @@ export function stopSmsWebhookServer(): void {
 }
 
 // Process incoming SMS as potential input for Claude
-export function processIncomingSms(message: SmsMessage): { isCommand: boolean; sessionId?: string; input?: string } {
+export function processIncomingSms(message: SmsMessage): {
+  isCommand: boolean;
+  sessionId?: string;
+  input?: string;
+} {
   const body = message.body.trim();
 
   // Check for command format: "session:input" or just input for latest session
@@ -173,13 +179,13 @@ export function processIncomingSms(message: SmsMessage): { isCommand: boolean; s
     return {
       isCommand: true,
       sessionId: commandMatch[1],
-      input: commandMatch[2].trim()
+      input: commandMatch[2].trim(),
     };
   }
 
   // Treat as input for the latest active session
   return {
     isCommand: true,
-    input: body
+    input: body,
   };
 }

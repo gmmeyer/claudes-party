@@ -20,8 +20,9 @@ const inputText = document.getElementById('input-text') as HTMLTextAreaElement;
 const inputCancel = document.getElementById('input-cancel') as HTMLButtonElement;
 const inputSend = document.getElementById('input-send') as HTMLButtonElement;
 const voiceControls = document.getElementById('voice-controls') as HTMLDivElement;
-const serverStatusDot = document.getElementById('server-status-dot') as HTMLSpanElement;
-const serverStatusText = document.getElementById('server-status-text') as HTMLSpanElement;
+// Server status elements are defined in HTML but not currently used in JS
+// const serverStatusDot = document.getElementById('server-status-dot') as HTMLSpanElement;
+// const serverStatusText = document.getElementById('server-status-text') as HTMLSpanElement;
 
 let currentInputSessionId: string | null = null;
 let isRecording = false;
@@ -67,7 +68,9 @@ function renderSessions(sessions: ClaudeSession[]) {
   noSessionsEl.style.display = 'none';
   sessionsListEl.style.display = 'block';
 
-  sessionsListEl.innerHTML = sessions.map(session => `
+  sessionsListEl.innerHTML = sessions
+    .map(
+      (session) => `
     <div class="session-card" data-session-id="${session.id}">
       <div class="session-header">
         <span class="session-id">${session.id.substring(0, 8)}...</span>
@@ -80,7 +83,9 @@ function renderSessions(sessions: ClaudeSession[]) {
       ${session.currentTool ? `<div class="session-tool">Using: ${session.currentTool}</div>` : ''}
       ${session.lastNotification ? `<div class="session-notification">${session.lastNotification}</div>` : ''}
       <div class="session-time">Started ${formatTime(session.startTime)}</div>
-      ${session.status === 'waiting' ? `
+      ${
+        session.status === 'waiting'
+          ? `
         <div class="session-actions">
           <button class="session-btn input-btn" data-action="input" data-session="${session.id}">
             Send Input
@@ -90,12 +95,16 @@ function renderSessions(sessions: ClaudeSession[]) {
             ${recordingSessionId === session.id ? 'Stop' : 'Voice'}
           </button>
         </div>
-      ` : ''}
+      `
+          : ''
+      }
     </div>
-  `).join('');
+  `
+    )
+    .join('');
 
   // Add event listeners to buttons
-  sessionsListEl.querySelectorAll('.session-btn').forEach(btn => {
+  sessionsListEl.querySelectorAll('.session-btn').forEach((btn) => {
     btn.addEventListener('click', handleSessionAction);
   });
 }
@@ -164,10 +173,12 @@ async function sendInput() {
   hideInputModal();
 }
 
-// Speech Recognition
+// Speech Recognition - Web Speech API lacks proper TypeScript definitions
+/* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-argument */
 function setupSpeechRecognition() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const SpeechRecognitionAPI = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+  const SpeechRecognitionAPI =
+    (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
 
   if (!SpeechRecognitionAPI) {
     console.log('Speech recognition not supported');
@@ -182,7 +193,7 @@ function setupSpeechRecognition() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   recognition.onresult = (event: any) => {
     const result = event.results[event.results.length - 1];
-    const transcript = result[0].transcript;
+    const transcript = result[0].transcript as string;
 
     if (result.isFinal && recordingSessionId) {
       window.electronAPI.sendVoiceInputResult(recordingSessionId, transcript);
@@ -203,7 +214,9 @@ function setupSpeechRecognition() {
     }
   };
 }
+/* eslint-enable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-argument */
 
+/* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
 function startRecording(sessionId: string) {
   if (!recognition) {
     window.electronAPI.showNotification('Voice Error', 'Speech recognition not available');
@@ -216,7 +229,7 @@ function startRecording(sessionId: string) {
   try {
     recognition.start();
     // Re-render to show recording state
-    window.electronAPI.getSessions().then(renderSessions);
+    void window.electronAPI.getSessions().then(renderSessions);
   } catch (e) {
     console.error('Error starting recognition:', e);
     stopRecording();
@@ -232,8 +245,9 @@ function stopRecording() {
   }
 
   // Re-render to clear recording state
-  window.electronAPI.getSessions().then(renderSessions);
+  void window.electronAPI.getSessions().then(renderSessions);
 }
+/* eslint-enable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
 
 // Event Listeners
 settingsBtn.addEventListener('click', () => {
@@ -245,12 +259,12 @@ minimizeBtn.addEventListener('click', () => {
 });
 
 inputCancel.addEventListener('click', hideInputModal);
-inputSend.addEventListener('click', sendInput);
+inputSend.addEventListener('click', () => void sendInput());
 
 inputText.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
-    sendInput();
+    void sendInput();
   }
   if (e.key === 'Escape') {
     hideInputModal();
@@ -265,10 +279,9 @@ inputModal.addEventListener('click', (e) => {
 });
 
 // Initialize
-init();
+void init();
 
 // Refresh sessions periodically
-setInterval(async () => {
-  const sessions = await window.electronAPI.getSessions();
-  renderSessions(sessions);
+setInterval(() => {
+  void window.electronAPI.getSessions().then(renderSessions);
 }, 5000);

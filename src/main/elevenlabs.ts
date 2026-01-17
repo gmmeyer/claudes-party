@@ -4,6 +4,7 @@ import * as https from 'https';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import { exec } from 'child_process';
 
 let isRecording = false;
 let currentSessionId: string | null = null;
@@ -23,7 +24,11 @@ export async function speakText(text: string): Promise<void> {
   }
 
   try {
-    const audioBuffer = await generateSpeech(text, settings.elevenLabsApiKey, settings.elevenLabsVoiceId);
+    const audioBuffer = await generateSpeech(
+      text,
+      settings.elevenLabsApiKey,
+      settings.elevenLabsVoiceId
+    );
     await playAudio(audioBuffer);
   } catch (error) {
     console.error('Error speaking text:', error);
@@ -37,8 +42,8 @@ function generateSpeech(text: string, apiKey: string, voiceId: string): Promise<
       model_id: 'eleven_monolingual_v1',
       voice_settings: {
         stability: 0.5,
-        similarity_boost: 0.75
-      }
+        similarity_boost: 0.75,
+      },
     });
 
     const options = {
@@ -47,16 +52,16 @@ function generateSpeech(text: string, apiKey: string, voiceId: string): Promise<
       path: `/v1/text-to-speech/${voiceId}`,
       method: 'POST',
       headers: {
-        'Accept': 'audio/mpeg',
+        Accept: 'audio/mpeg',
         'Content-Type': 'application/json',
-        'xi-api-key': apiKey
-      }
+        'xi-api-key': apiKey,
+      },
     };
 
     const req = https.request(options, (res) => {
       const chunks: Buffer[] = [];
 
-      res.on('data', (chunk) => chunks.push(chunk));
+      res.on('data', (chunk: Buffer) => chunks.push(chunk));
       res.on('end', () => {
         if (res.statusCode === 200) {
           resolve(Buffer.concat(chunks));
@@ -72,14 +77,11 @@ function generateSpeech(text: string, apiKey: string, voiceId: string): Promise<
   });
 }
 
-async function playAudio(audioBuffer: Buffer): Promise<void> {
+function playAudio(audioBuffer: Buffer): Promise<void> {
   // Save to temp file and play using system audio
   const tempFile = path.join(os.tmpdir(), `claude-speech-${Date.now()}.mp3`);
 
   fs.writeFileSync(tempFile, audioBuffer);
-
-  // Play audio based on platform
-  const { exec } = require('child_process');
 
   return new Promise((resolve, reject) => {
     let command: string;
@@ -154,7 +156,7 @@ export function getCurrentVoiceSessionId(): string | null {
 // For now, we'll rely on browser's Web Speech API which is free
 // and works well for basic transcription
 
-export async function transcribeWithElevenLabs(audioBlob: Buffer): Promise<string> {
+export function transcribeWithElevenLabs(_audioBlob: Buffer): string {
   // ElevenLabs currently focuses on TTS, not STT
   // This is a placeholder for if they add STT capability
   // For now, the renderer uses Web Speech API

@@ -1,4 +1,4 @@
-import { ClaudeSession, HookEvent, HookType } from '../shared/types';
+import { ClaudeSession, HookEvent } from '../shared/types';
 
 // In-memory store for active sessions
 const sessions = new Map<string, ClaudeSession>();
@@ -17,13 +17,16 @@ export function createSession(sessionId: string, workingDirectory: string): Clau
     workingDirectory,
     startTime: Date.now(),
     status: 'active',
-    lastActivity: Date.now()
+    lastActivity: Date.now(),
   };
   sessions.set(sessionId, session);
   return session;
 }
 
-export function updateSession(sessionId: string, updates: Partial<ClaudeSession>): ClaudeSession | undefined {
+export function updateSession(
+  sessionId: string,
+  updates: Partial<ClaudeSession>
+): ClaudeSession | undefined {
   const session = sessions.get(sessionId);
   if (session) {
     const updated = { ...session, ...updates, lastActivity: Date.now() };
@@ -53,25 +56,25 @@ export function processHookEvent(event: HookEvent): ClaudeSession | undefined {
     case 'PreToolUse':
       return updateSession(sessionId, {
         status: 'active',
-        currentTool: data.tool_name
+        currentTool: data.tool_name,
       });
 
     case 'PostToolUse':
       return updateSession(sessionId, {
         status: 'active',
-        currentTool: undefined
+        currentTool: undefined,
       });
 
     case 'Notification':
       return updateSession(sessionId, {
         status: 'waiting',
-        lastNotification: data.message
+        lastNotification: data.message,
       });
 
     case 'Stop':
       return updateSession(sessionId, {
         status: 'stopped',
-        currentTool: undefined
+        currentTool: undefined,
       });
 
     default:

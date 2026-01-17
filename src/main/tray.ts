@@ -25,17 +25,17 @@ export function createTray(): Tray {
   const contextMenu = Menu.buildFromTemplate([
     {
       label: 'Show/Hide Status',
-      click: () => togglePopover()
+      click: () => togglePopover(),
     },
     {
       label: 'Settings',
-      click: () => createSettingsWindow()
+      click: () => createSettingsWindow(),
     },
     { type: 'separator' },
     {
       label: 'Quit',
-      click: () => app.quit()
-    }
+      click: () => app.quit(),
+    },
   ]);
 
   tray.setContextMenu(contextMenu);

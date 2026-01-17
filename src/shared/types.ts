@@ -85,7 +85,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   popoverOpacity: 0.95,
   alwaysOnTop: true,
 
-  hookServerPort: 31548
+  hookServerPort: 31548,
 };
 
 // IPC channel names
@@ -124,7 +124,7 @@ export const IPC_CHANNELS = {
   // Claude Code hook management
   INSTALL_HOOKS: 'install-hooks',
   UNINSTALL_HOOKS: 'uninstall-hooks',
-  GET_HOOK_STATUS: 'get-hook-status'
+  GET_HOOK_STATUS: 'get-hook-status',
 } as const;
 
 // Hook status response

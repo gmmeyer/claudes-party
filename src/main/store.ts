@@ -4,10 +4,10 @@ import { AppSettings, DEFAULT_SETTINGS } from '../shared/types';
 // Initialize the store with default settings
 const store = new Store<{ settings: AppSettings }>({
   defaults: {
-    settings: DEFAULT_SETTINGS
+    settings: DEFAULT_SETTINGS,
   },
   encryptionKey: 'claudes-party-encryption-key', // Basic encryption for sensitive data
-  name: 'claudes-party-config'
+  name: 'claudes-party-config',
 });
 
 export function getSettings(): AppSettings {

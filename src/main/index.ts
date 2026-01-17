@@ -4,7 +4,7 @@ import {
   createSettingsWindow,
   getPopoverWindow,
   togglePopover,
-  updatePopoverSettings
+  updatePopoverSettings,
 } from './windows';
 import { createTray, destroyTray, updateTrayIcon } from './tray';
 import { startHookServer, stopHookServer, setPopoverWindow, getServerPort } from './hooks-listener';
@@ -12,7 +12,12 @@ import { getSettings, saveSettings } from './store';
 import { getSessions } from './sessions';
 import { initNotifications, showNotification } from './notifications';
 import { speakText, startVoiceInput, stopVoiceInput, setPopoverWindowForVoice } from './elevenlabs';
-import { sendSms, startSmsWebhookServer, stopSmsWebhookServer, setMainWindowForSms } from './twilio';
+import {
+  sendSms,
+  startSmsWebhookServer,
+  stopSmsWebhookServer,
+  setMainWindowForSms,
+} from './twilio';
 import { sendInputToSession, cleanupOldInputs } from './input-handler';
 import { installHooks, uninstallHooks, getHookStatus } from './claude-config';
 import { IPC_CHANNELS, AppSettings } from '../shared/types';
@@ -34,7 +39,7 @@ if (!gotTheLock) {
 }
 
 // Handle app ready
-app.whenReady().then(() => {
+void app.whenReady().then(() => {
   // Initialize notifications
   initNotifications();
 
@@ -133,8 +138,8 @@ ipcMain.on(IPC_CHANNELS.CLOSE_WINDOW, (event) => {
 });
 
 // Input to session
-ipcMain.handle(IPC_CHANNELS.SEND_INPUT_TO_SESSION, async (_, sessionId: string, input: string) => {
-  return await sendInputToSession(sessionId, input);
+ipcMain.handle(IPC_CHANNELS.SEND_INPUT_TO_SESSION, (_, sessionId: string, input: string) => {
+  return sendInputToSession(sessionId, input);
 });
 
 // Notifications
@@ -143,9 +148,9 @@ ipcMain.on(IPC_CHANNELS.SHOW_NOTIFICATION, (_, title: string, body: string) => {
 });
 
 // Handle voice input result from renderer (Web Speech API)
-ipcMain.on(IPC_CHANNELS.VOICE_INPUT_RESULT, async (_, sessionId: string, transcript: string) => {
+ipcMain.on(IPC_CHANNELS.VOICE_INPUT_RESULT, (_, sessionId: string, transcript: string) => {
   if (transcript) {
-    await sendInputToSession(sessionId, transcript);
+    sendInputToSession(sessionId, transcript);
     showNotification('Voice Input Sent', `"${transcript}" sent to Claude`);
   }
 });

@@ -2,7 +2,7 @@ import { createServer, IncomingMessage, ServerResponse, Server } from 'http';
 import { BrowserWindow } from 'electron';
 import { HookEvent, HookType, IPC_CHANNELS } from '../shared/types';
 import { processHookEvent, getSessions, ensureSession } from './sessions';
-import { getSettings } from './store';
+import { getSettings, saveSettings } from './store';
 import { showNotification } from './notifications';
 import { speakText } from './elevenlabs';
 import { sendSms } from './twilio';
@@ -85,7 +85,7 @@ async function handleHookEvent(event: HookEvent): Promise<void> {
 function parseRequestBody(req: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
     let body = '';
-    req.on('data', (chunk) => {
+    req.on('data', (chunk: Buffer) => {
       body += chunk.toString();
     });
     req.on('end', () => resolve(body));
@@ -101,67 +101,70 @@ export function startHookServer(): void {
     server.close();
   }
 
-  server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
-    // Set CORS headers
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  server = createServer((req: IncomingMessage, res: ServerResponse) => {
+    void (async () => {
+      // Set CORS headers
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-    if (req.method === 'OPTIONS') {
-      res.writeHead(200);
-      res.end();
-      return;
-    }
-
-    if (req.method !== 'POST') {
-      res.writeHead(405);
-      res.end('Method not allowed');
-      return;
-    }
-
-    try {
-      const body = await parseRequestBody(req);
-      const data = JSON.parse(body);
-
-      // Extract hook type from URL path
-      const url = new URL(req.url || '/', `http://localhost:${port}`);
-      const pathParts = url.pathname.split('/').filter(Boolean);
-      const hookType = pathParts[pathParts.length - 1] as HookType;
-
-      // Validate hook type
-      const validHooks: HookType[] = [
-        'PreToolUse',
-        'PostToolUse',
-        'Notification',
-        'Stop',
-        'SessionStart',
-        'SessionEnd'
-      ];
-
-      if (!validHooks.includes(hookType)) {
-        res.writeHead(400);
-        res.end(JSON.stringify({ error: 'Invalid hook type' }));
+      if (req.method === 'OPTIONS') {
+        res.writeHead(200);
+        res.end();
         return;
       }
 
-      // Create hook event
-      const event: HookEvent = {
-        type: hookType,
-        sessionId: data.session_id || data.sessionId || 'unknown',
-        timestamp: Date.now(),
-        data: data
-      };
+      if (req.method !== 'POST') {
+        res.writeHead(405);
+        res.end('Method not allowed');
+        return;
+      }
 
-      // Process the event
-      await handleHookEvent(event);
+      try {
+        const body = await parseRequestBody(req);
+        const data = JSON.parse(body) as Record<string, unknown>;
 
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ success: true }));
-    } catch (error) {
-      console.error('Error processing hook:', error);
-      res.writeHead(500);
-      res.end(JSON.stringify({ error: 'Internal server error' }));
-    }
+        // Extract hook type from URL path
+        const url = new URL(req.url || '/', `http://localhost:${port}`);
+        const pathParts = url.pathname.split('/').filter(Boolean);
+        const hookType = pathParts[pathParts.length - 1] as HookType;
+
+        // Validate hook type
+        const validHooks: HookType[] = [
+          'PreToolUse',
+          'PostToolUse',
+          'Notification',
+          'Stop',
+          'SessionStart',
+          'SessionEnd',
+        ];
+
+        if (!validHooks.includes(hookType)) {
+          res.writeHead(400);
+          res.end(JSON.stringify({ error: 'Invalid hook type' }));
+          return;
+        }
+
+        // Create hook event
+        const sessionId = (data.session_id as string) || (data.sessionId as string) || 'unknown';
+        const event: HookEvent = {
+          type: hookType,
+          sessionId,
+          timestamp: Date.now(),
+          data: data as HookEvent['data'],
+        };
+
+        // Process the event
+        await handleHookEvent(event);
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true }));
+      } catch (error) {
+        console.error('Error processing hook:', error);
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: 'Internal server error' }));
+      }
+    })();
   });
 
   server.listen(port, '127.0.0.1', () => {
@@ -175,7 +178,7 @@ export function startHookServer(): void {
       server?.close();
       // Try next port
       const newSettings = { ...settings, hookServerPort: port + 1 };
-      require('./store').saveSettings(newSettings);
+      saveSettings(newSettings);
       startHookServer();
     }
   });

@@ -1,4 +1,4 @@
-import { Notification, nativeImage, app } from 'electron';
+import { Notification, app } from 'electron';
 import * as path from 'path';
 
 let iconPath: string;
@@ -19,7 +19,7 @@ export function showNotification(title: string, body: string): void {
     body,
     icon: iconPath,
     silent: false,
-    urgency: 'normal'
+    urgency: 'normal',
   });
 
   notification.on('click', () => {
@@ -35,10 +35,7 @@ export function showErrorNotification(title: string, error: string): void {
 }
 
 export function showSessionEndNotification(workingDirectory: string): void {
-  showNotification(
-    'Claude Session Complete',
-    `Session in ${workingDirectory} has finished`
-  );
+  showNotification('Claude Session Complete', `Session in ${workingDirectory} has finished`);
 }
 
 export function showWaitingForInputNotification(message: string): void {

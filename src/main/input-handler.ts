@@ -1,4 +1,3 @@
-import { exec } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -7,7 +6,7 @@ import * as os from 'os';
 // Claude Code accepts input via stdin when waiting for user input
 // We can use named pipes or the Claude API depending on how the session is running
 
-export async function sendInputToSession(sessionId: string, input: string): Promise<boolean> {
+export function sendInputToSession(sessionId: string, input: string): boolean {
   // Method 1: Write to a known input file that hook scripts can read
   const inputDir = path.join(os.homedir(), '.claude', 'party-inputs');
 

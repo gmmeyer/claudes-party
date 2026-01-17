@@ -11,7 +11,11 @@ export function getClaudeSettingsPath(): string {
   if (platform === 'darwin') {
     return path.join(home, 'Library', 'Application Support', 'Claude', 'settings.json');
   } else if (platform === 'win32') {
-    return path.join(process.env.APPDATA || path.join(home, 'AppData', 'Roaming'), 'Claude', 'settings.json');
+    return path.join(
+      process.env.APPDATA || path.join(home, 'AppData', 'Roaming'),
+      'Claude',
+      'settings.json'
+    );
   } else {
     // Linux and others
     return path.join(home, '.config', 'claude', 'settings.json');
@@ -33,7 +37,7 @@ export function generateHookCommands(): Record<string, string[]> {
     Notification: [curlCmd('Notification')],
     Stop: [curlCmd('Stop')],
     SessionStart: [curlCmd('SessionStart')],
-    SessionEnd: [curlCmd('SessionEnd')]
+    SessionEnd: [curlCmd('SessionEnd')],
   };
 }
 
@@ -44,7 +48,7 @@ export function readClaudeSettings(): Record<string, unknown> | null {
   try {
     if (fs.existsSync(settingsPath)) {
       const content = fs.readFileSync(settingsPath, 'utf-8');
-      return JSON.parse(content);
+      return JSON.parse(content) as Record<string, unknown>;
     }
   } catch (error) {
     console.error('Error reading Claude settings:', error);
@@ -77,7 +81,7 @@ export function writeClaudeSettings(settings: Record<string, unknown>): boolean 
 export function installHooks(): { success: boolean; message: string } {
   try {
     // Read existing settings or create empty object
-    let claudeSettings = readClaudeSettings() || {};
+    const claudeSettings = readClaudeSettings() || {};
 
     // Generate new hook commands
     const hookCommands = generateHookCommands();
@@ -93,17 +97,16 @@ export function installHooks(): { success: boolean; message: string } {
       const ourCommand = commands[0];
 
       // Check if our command (or similar) is already in the list
-      const alreadyInstalled = existingCommands.some(cmd =>
-        cmd.includes('127.0.0.1:') && cmd.includes('/claudes-party') ||
-        cmd.includes(`/${hookType}`) && cmd.includes('127.0.0.1:')
+      const alreadyInstalled = existingCommands.some(
+        (cmd) =>
+          (cmd.includes('127.0.0.1:') && cmd.includes('/claudes-party')) ||
+          (cmd.includes(`/${hookType}`) && cmd.includes('127.0.0.1:'))
       );
 
       if (alreadyInstalled) {
         // Replace existing Claude's Party hook with updated one
-        newHooks[hookType] = existingCommands.map(cmd =>
-          (cmd.includes('127.0.0.1:') && cmd.includes(`/${hookType}`))
-            ? ourCommand
-            : cmd
+        newHooks[hookType] = existingCommands.map((cmd) =>
+          cmd.includes('127.0.0.1:') && cmd.includes(`/${hookType}`) ? ourCommand : cmd
         );
       } else {
         // Add our command to the list
@@ -118,18 +121,18 @@ export function installHooks(): { success: boolean; message: string } {
     if (writeClaudeSettings(claudeSettings)) {
       return {
         success: true,
-        message: `Hooks installed successfully to ${getClaudeSettingsPath()}`
+        message: `Hooks installed successfully to ${getClaudeSettingsPath()}`,
       };
     } else {
       return {
         success: false,
-        message: 'Failed to write Claude Code settings file'
+        message: 'Failed to write Claude Code settings file',
       };
     }
   } catch (error) {
     return {
       success: false,
-      message: `Error installing hooks: ${error}`
+      message: `Error installing hooks: ${String(error)}`,
     };
   }
 }
@@ -142,7 +145,7 @@ export function uninstallHooks(): { success: boolean; message: string } {
     if (!claudeSettings) {
       return {
         success: true,
-        message: 'No Claude Code settings found'
+        message: 'No Claude Code settings found',
       };
     }
 
@@ -151,8 +154,8 @@ export function uninstallHooks(): { success: boolean; message: string } {
 
     // Remove our hooks from each hook type
     for (const [hookType, commands] of Object.entries(existingHooks)) {
-      const filteredCommands = commands.filter(cmd =>
-        !(cmd.includes('127.0.0.1:') && cmd.includes(`/${hookType}`))
+      const filteredCommands = commands.filter(
+        (cmd) => !(cmd.includes('127.0.0.1:') && cmd.includes(`/${hookType}`))
       );
 
       if (filteredCommands.length > 0) {
@@ -171,18 +174,18 @@ export function uninstallHooks(): { success: boolean; message: string } {
     if (writeClaudeSettings(claudeSettings)) {
       return {
         success: true,
-        message: 'Hooks uninstalled successfully'
+        message: 'Hooks uninstalled successfully',
       };
     } else {
       return {
         success: false,
-        message: 'Failed to write Claude Code settings file'
+        message: 'Failed to write Claude Code settings file',
       };
     }
   } catch (error) {
     return {
       success: false,
-      message: `Error uninstalling hooks: ${error}`
+      message: `Error uninstalling hooks: ${String(error)}`,
     };
   }
 }
@@ -200,8 +203,8 @@ export function areHooksInstalled(): boolean {
   const port = settings.hookServerPort;
 
   // Check if at least one of our hooks is present
-  return Object.values(hooks).some(commands =>
-    commands.some(cmd => cmd.includes(`127.0.0.1:${port}`))
+  return Object.values(hooks).some((commands) =>
+    commands.some((cmd) => cmd.includes(`127.0.0.1:${port}`))
   );
 }
 
@@ -224,7 +227,7 @@ export function getHookStatus(): {
     const port = settings.hookServerPort;
 
     for (const [hookType, commands] of Object.entries(hooks)) {
-      if (commands.some(cmd => cmd.includes(`127.0.0.1:${port}`))) {
+      if (commands.some((cmd) => cmd.includes(`127.0.0.1:${port}`))) {
         hookTypes.push(hookType);
       }
     }
@@ -234,6 +237,6 @@ export function getHookStatus(): {
     installed,
     settingsPath,
     settingsExist,
-    hookTypes
+    hookTypes,
   };
 }
