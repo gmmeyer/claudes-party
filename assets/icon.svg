@@ -1,0 +1,29 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1a2e"/>
+      <stop offset="100%" style="stop-color:#16213e"/>
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <!-- Party hat -->
+  <path d="M256 80 L350 280 L162 280 Z" fill="#9b59b6" stroke="#8e44ad" stroke-width="8"/>
+  <circle cx="256" cy="80" r="20" fill="#f1c40f"/>
+  <!-- Stripes on hat -->
+  <path d="M220 200 L256 120 L292 200" stroke="#e74c3c" stroke-width="12" fill="none"/>
+  <!-- Face circle -->
+  <circle cx="256" cy="340" r="100" fill="#3498db"/>
+  <!-- Eyes -->
+  <circle cx="216" cy="320" r="16" fill="#fff"/>
+  <circle cx="296" cy="320" r="16" fill="#fff"/>
+  <circle cx="220" cy="324" r="8" fill="#1a1a2e"/>
+  <circle cx="300" cy="324" r="8" fill="#1a1a2e"/>
+  <!-- Smile -->
+  <path d="M200 360 Q256 420 312 360" stroke="#fff" stroke-width="10" fill="none" stroke-linecap="round"/>
+  <!-- Confetti -->
+  <rect x="80" y="120" width="20" height="20" fill="#e74c3c" transform="rotate(45 90 130)"/>
+  <rect x="400" y="100" width="20" height="20" fill="#2ecc71" transform="rotate(30 410 110)"/>
+  <rect x="420" y="200" width="15" height="15" fill="#f1c40f" transform="rotate(-20 427 207)"/>
+  <rect x="60" y="220" width="18" height="18" fill="#9b59b6" transform="rotate(15 69 229)"/>
+</svg>
