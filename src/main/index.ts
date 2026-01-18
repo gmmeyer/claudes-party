@@ -241,6 +241,7 @@ ipcMain.handle(IPC_CHANNELS.TEST_DISCORD, async () => {
 
 // Window controls
 ipcMain.on(IPC_CHANNELS.OPEN_SETTINGS, () => {
+  console.log('IPC: OPEN_SETTINGS received');
   createSettingsWindow();
 });
 

@@ -71,11 +71,14 @@ export function createPopoverWindow(): BrowserWindow {
 }
 
 export function createSettingsWindow(): BrowserWindow {
+  console.log('createSettingsWindow called');
   if (settingsWindow && !settingsWindow.isDestroyed()) {
+    console.log('Settings window exists, focusing');
     settingsWindow.focus();
     return settingsWindow;
   }
 
+  console.log('Creating new settings window');
   const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
 
   settingsWindow = new BrowserWindow({
@@ -102,8 +105,13 @@ export function createSettingsWindow(): BrowserWindow {
   settingsWindow.setMenuBarVisibility(false);
 
   settingsWindow.once('ready-to-show', () => {
+    console.log('Settings window ready-to-show');
     settingsWindow?.show();
     settingsWindow?.focus();
+  });
+
+  settingsWindow.webContents.on('did-fail-load', (_, errorCode, errorDescription) => {
+    console.error('Settings window failed to load:', errorCode, errorDescription);
   });
 
   settingsWindow.on('closed', () => {

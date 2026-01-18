@@ -3,23 +3,10 @@ import * as path from 'path';
 import * as os from 'os';
 import { getSettings } from './store';
 
-// Get Claude Code settings file path based on platform
+// Get Claude Code settings file path - uses ~/.claude/settings.json on all platforms
 export function getClaudeSettingsPath(): string {
-  const platform = process.platform;
   const home = os.homedir();
-
-  if (platform === 'darwin') {
-    return path.join(home, 'Library', 'Application Support', 'Claude', 'settings.json');
-  } else if (platform === 'win32') {
-    return path.join(
-      process.env.APPDATA || path.join(home, 'AppData', 'Roaming'),
-      'Claude',
-      'settings.json'
-    );
-  } else {
-    // Linux and others
-    return path.join(home, '.config', 'claude', 'settings.json');
-  }
+  return path.join(home, '.claude', 'settings.json');
 }
 
 // Generate hook commands for the current port
