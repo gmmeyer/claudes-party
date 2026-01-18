@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { getSettings } from './store';
+import { log } from './logger';
 
 // Get Claude Code settings file path - uses ~/.claude/settings.json on all platforms
 export function getClaudeSettingsPath(): string {
@@ -38,7 +39,7 @@ export function readClaudeSettings(): Record<string, unknown> | null {
       return JSON.parse(content) as Record<string, unknown>;
     }
   } catch (error) {
-    console.error('Error reading Claude settings:', error);
+    log.error('Error reading Claude settings:', error);
   }
 
   return null;
@@ -59,7 +60,7 @@ export function writeClaudeSettings(settings: Record<string, unknown>): boolean 
     fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2), 'utf-8');
     return true;
   } catch (error) {
-    console.error('Error writing Claude settings:', error);
+    log.error('Error writing Claude settings:', error);
     return false;
   }
 }

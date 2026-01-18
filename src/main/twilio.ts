@@ -10,8 +10,9 @@ import {
   SetupResult,
 } from '../shared/types';
 import { sendInputToSession } from './input-handler';
-import { getSessions, getSession } from './sessions';
+import { getSession } from './sessions';
 import { log } from './logger';
+import { findTargetSession } from './session-utils';
 
 let smsServer: Server | null = null;
 let mainWindow: BrowserWindow | null = null;
@@ -555,20 +556,11 @@ async function handleIncomingSmsAsInput(message: SmsMessage): Promise<void> {
 
   let targetSessionId = parsed.sessionId;
 
-  // If no session specified, find the most recent waiting session
+  // If no session specified, find the best target session using shared utility
   if (!targetSessionId) {
-    const sessions = getSessions();
-    const waitingSession = sessions.find((s) => s.status === 'waiting');
-    if (waitingSession) {
-      targetSessionId = waitingSession.id;
-    } else {
-      // Fall back to most recent active session
-      const activeSession = sessions
-        .filter((s) => s.status === 'active')
-        .sort((a, b) => b.lastActivity - a.lastActivity)[0];
-      if (activeSession) {
-        targetSessionId = activeSession.id;
-      }
+    const target = findTargetSession();
+    if (target) {
+      targetSessionId = target.id;
     }
   }
 
@@ -621,9 +613,9 @@ export function processIncomingSms(message: SmsMessage): {
     };
   }
 
-  // Treat as input for the latest active session
+  // Treat as plain input for the latest active session (not a command)
   return {
-    isCommand: true,
+    isCommand: false,
     input: body,
   };
 }

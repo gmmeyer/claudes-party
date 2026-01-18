@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import * as http from 'http';
+import { log } from './logger';
 
 const WRAPPER_PORT_FILE = path.join(os.homedir(), '.claude', 'party-wrapper.port');
 
@@ -30,8 +31,13 @@ function getWrapperPort(): number | null {
   return null;
 }
 
-// Send input via HTTP to the wrapper
-function sendInputViaHttp(port: number, input: string): Promise<boolean> {
+// Helper to delay execution
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Send input via HTTP to the wrapper (single attempt)
+function sendInputViaHttpOnce(port: number, input: string): Promise<boolean> {
   return new Promise((resolve) => {
     const postData = JSON.stringify({ input });
 
@@ -52,21 +58,22 @@ function sendInputViaHttp(port: number, input: string): Promise<boolean> {
       res.on('data', (chunk: Buffer) => (data += chunk.toString()));
       res.on('end', () => {
         if (res.statusCode === 200) {
-          console.log('Input sent via HTTP to claude-party wrapper');
+          log.info('Input sent via HTTP to claude-party wrapper');
           resolve(true);
         } else {
-          console.error('HTTP input failed:', data);
+          log.error('HTTP input failed', { statusCode: res.statusCode, response: data });
           resolve(false);
         }
       });
     });
 
     req.on('error', (err) => {
-      console.error('HTTP request error:', err.message);
+      log.error('HTTP request error', { error: err.message });
       resolve(false);
     });
 
     req.on('timeout', () => {
+      log.warn('HTTP request timeout');
       req.destroy();
       resolve(false);
     });
@@ -74,6 +81,32 @@ function sendInputViaHttp(port: number, input: string): Promise<boolean> {
     req.write(postData);
     req.end();
   });
+}
+
+// Send input via HTTP with retry logic (exponential backoff)
+async function sendInputViaHttp(port: number, input: string, maxRetries: number = 3): Promise<boolean> {
+  const delays = [0, 1000, 2000, 4000]; // Initial attempt + retries with exponential backoff
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    if (attempt > 0) {
+      log.debug('Retrying HTTP input', { attempt, delay: delays[attempt] });
+      await delay(delays[attempt]);
+    }
+
+    const success = await sendInputViaHttpOnce(port, input);
+    if (success) {
+      return true;
+    }
+
+    // Check if wrapper is still running before retrying
+    const currentPort = getWrapperPort();
+    if (!currentPort) {
+      log.debug('Wrapper no longer running, stopping retries');
+      break;
+    }
+  }
+
+  return false;
 }
 
 // Send input to a running Claude Code session
@@ -86,7 +119,7 @@ export async function sendInputToSession(sessionId: string, input: string): Prom
     if (success) {
       return true;
     }
-    console.log('HTTP failed, falling back to file-based input');
+    log.info('HTTP failed, falling back to file-based input');
   }
 
   // Method 2: Write to a known input file (legacy/fallback)
@@ -102,10 +135,10 @@ export async function sendInputToSession(sessionId: string, input: string): Prom
     const inputFile = path.join(inputDir, `${sessionId}.input`);
     fs.writeFileSync(inputFile, input);
 
-    console.log(`Input written for session ${sessionId}: ${input}`);
+    log.info(`Input written for session ${sessionId}: ${input}`);
     return true;
   } catch (error) {
-    console.error('Error sending input to session:', error);
+    log.error('Error sending input to session:', error);
     return false;
   }
 }
@@ -122,10 +155,10 @@ export function sendInputToSessionSync(sessionId: string, input: string): boolea
     const inputFile = path.join(inputDir, `${sessionId}.input`);
     fs.writeFileSync(inputFile, input);
 
-    console.log(`Input written for session ${sessionId}: ${input}`);
+    log.info(`Input written for session ${sessionId}: ${input}`);
     return true;
   } catch (error) {
-    console.error('Error sending input to session:', error);
+    log.error('Error sending input to session:', error);
     return false;
   }
 }
@@ -142,7 +175,7 @@ export function readPendingInput(sessionId: string): string | null {
       return input;
     }
   } catch (error) {
-    console.error('Error reading pending input:', error);
+    log.error('Error reading pending input:', error);
   }
 
   return null;
@@ -174,6 +207,6 @@ export function cleanupOldInputs(): void {
       }
     }
   } catch (error) {
-    console.error('Error cleaning up old inputs:', error);
+    log.error('Error cleaning up old inputs:', error);
   }
 }

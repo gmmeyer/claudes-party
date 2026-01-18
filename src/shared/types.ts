@@ -126,7 +126,6 @@ export const IPC_CHANNELS = {
   // Sessions
   GET_SESSIONS: 'get-sessions',
   SESSIONS_UPDATED: 'sessions-updated',
-  SESSION_EVENT: 'session-event',
 
   // Voice
   START_VOICE_INPUT: 'start-voice-input',
@@ -164,6 +163,9 @@ export const IPC_CHANNELS = {
   // Notifications
   SHOW_NOTIFICATION: 'show-notification',
 
+  // External URLs
+  OPEN_EXTERNAL_URL: 'open-external-url',
+
   // Claude Code hook management
   INSTALL_HOOKS: 'install-hooks',
   UNINSTALL_HOOKS: 'uninstall-hooks',
@@ -189,13 +191,6 @@ export interface HookStatus {
   settingsPath: string;
   settingsExist: boolean;
   hookTypes: string[];
-}
-
-// Voice input state
-export interface VoiceInputState {
-  isRecording: boolean;
-  sessionId?: string;
-  transcript?: string;
 }
 
 // SMS message

@@ -86,17 +86,23 @@ function playAudio(audioBuffer: Buffer): Promise<void> {
 
   return new Promise((resolve, reject) => {
     let command: string;
+    let platformInfo: string;
 
     if (process.platform === 'darwin') {
       command = `afplay "${tempFile}"`;
+      platformInfo = 'macOS (afplay)';
     } else if (process.platform === 'win32') {
       command = `powershell -c "(New-Object Media.SoundPlayer '${tempFile}').PlaySync()"`;
+      platformInfo = 'Windows (PowerShell)';
     } else {
-      // Linux
-      command = `mpv "${tempFile}" --no-video 2>/dev/null || aplay "${tempFile}" 2>/dev/null || paplay "${tempFile}"`;
+      // Linux - try multiple players in order
+      command = `mpv "${tempFile}" --no-video 2>/dev/null || aplay "${tempFile}" 2>/dev/null || paplay "${tempFile}" 2>/dev/null`;
+      platformInfo = 'Linux (mpv/aplay/paplay)';
     }
 
-    exec(command, (error: Error | null) => {
+    log.debug('Playing audio', { platform: platformInfo, tempFile });
+
+    exec(command, (error: Error | null, _stdout, stderr) => {
       // Clean up temp file
       try {
         fs.unlinkSync(tempFile);
@@ -105,9 +111,15 @@ function playAudio(audioBuffer: Buffer): Promise<void> {
       }
 
       if (error) {
-        log.error('Error playing audio', { error: error.message });
-        reject(error);
+        // Provide helpful error message for Linux
+        let errorMessage = error.message;
+        if (process.platform === 'linux' && stderr) {
+          errorMessage = 'No audio player available. Install mpv, aplay, or paplay.';
+        }
+        log.error('Error playing audio', { error: errorMessage, platform: platformInfo });
+        reject(new Error(errorMessage));
       } else {
+        log.debug('Audio playback completed successfully');
         resolve();
       }
     });

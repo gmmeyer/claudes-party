@@ -1,20 +1,13 @@
 import { getSettings } from './store';
 import * as https from 'https';
 import { BrowserWindow } from 'electron';
-import { IPC_CHANNELS, DiscordMessage, SetupResult } from '../shared/types';
+import { IPC_CHANNELS, DiscordMessage, SetupResult, ClaudeSession } from '../shared/types';
 import { sendInputToSession } from './input-handler';
-import { getSessions, getSession } from './sessions';
+import { getSessions } from './sessions';
 import { log } from './logger';
+import { findSessionById, findTargetSession } from './session-utils';
 
 let mainWindow: BrowserWindow | null = null;
-let gatewayConnection: WebSocketLike | null = null;
-let heartbeatInterval: NodeJS.Timeout | null = null;
-
-// Simple WebSocket-like interface for the Discord gateway
-interface WebSocketLike {
-  send: (data: string) => void;
-  close: () => void;
-}
 
 export function setMainWindowForDiscord(window: BrowserWindow | null): void {
   mainWindow = window;
@@ -337,42 +330,46 @@ export function stopDiscordBot(): void {
     discordPollingInterval = null;
   }
 
-  if (heartbeatInterval) {
-    clearInterval(heartbeatInterval);
-    heartbeatInterval = null;
-  }
-
-  if (gatewayConnection) {
-    gatewayConnection.close();
-    gatewayConnection = null;
-  }
-
   log.info('Discord bot stopped');
 }
 
-// Find session by full or partial ID
-function findSessionById(
-  idPrefix: string
-): { id: string; session: ReturnType<typeof getSession> } | null {
-  // Try exact match first
-  const exactSession = getSession(idPrefix);
-  if (exactSession) {
-    return { id: idPrefix, session: exactSession };
+// Format session list for Discord (uses Discord emoji format)
+function formatDiscordSessionList(sessions: ClaudeSession[]): string {
+  if (sessions.length === 0) {
+    return 'No active Claude sessions.';
   }
 
-  // Try prefix match
-  const sessions = getSessions();
-  const matches = sessions.filter((s) => s.id.startsWith(idPrefix));
+  return sessions
+    .map((s) => {
+      const shortId = s.id.substring(0, 8);
+      const dirName = s.workingDirectory?.split('/').pop() || 'unknown';
+      const statusIcon =
+        s.status === 'waiting'
+          ? ':hourglass:'
+          : s.status === 'active'
+            ? ':arrows_counterclockwise:'
+            : ':stop_button:';
+      return (
+        `${statusIcon} **${shortId}** (${s.status})\n` +
+        `    :file_folder: \`${dirName}\`\n` +
+        (s.currentTool ? `    :wrench: ${s.currentTool}\n` : '') +
+        `    _\`!session ${shortId} <msg>\`_`
+      );
+    })
+    .join('\n\n');
+}
 
-  if (matches.length === 1) {
-    return { id: matches[0].id, session: matches[0] };
-  }
-
-  if (matches.length > 1) {
-    return null; // Ambiguous
-  }
-
-  return null;
+// Format ambiguous matches for Discord
+function formatDiscordAmbiguousMatches(matches: ClaudeSession[], idPrefix: string): string {
+  const header = `Multiple sessions match "${idPrefix}":`;
+  const list = matches
+    .map((s) => {
+      const shortId = s.id.substring(0, 8);
+      const dirName = s.workingDirectory?.split('/').pop() || 'unknown';
+      return `• \`${shortId}\` - ${dirName}`;
+    })
+    .join('\n');
+  return `${header}\n${list}`;
 }
 
 // Handle incoming Discord message as Claude input
@@ -388,23 +385,15 @@ async function handleIncomingDiscordMessage(message: DiscordMessage): Promise<vo
     const idPrefix = sessionMatch[1];
     input = sessionMatch[2].trim();
 
-    // Find session by prefix
-    const found = findSessionById(idPrefix);
-    if (found) {
-      targetSessionId = found.id;
+    // Find session by prefix using shared utility
+    const result = findSessionById(idPrefix);
+    if (result.found && result.session) {
+      targetSessionId = result.session.id;
+    } else if (result.ambiguous && result.matches) {
+      await sendDiscord(formatDiscordAmbiguousMatches(result.matches, idPrefix));
+      return;
     } else {
-      const sessions = getSessions();
-      const matches = sessions.filter((s) => s.id.startsWith(idPrefix));
-      if (matches.length > 1) {
-        await sendDiscord(
-          `Multiple sessions match "${idPrefix}":\n` +
-            matches
-              .map((s) => `• \`${s.id.substring(0, 8)}\` - ${s.workingDirectory?.split('/').pop()}`)
-              .join('\n')
-        );
-        return;
-      }
-      await sendDiscord(`No session found matching "${idPrefix}"`);
+      await sendDiscord(result.error || `No session found matching "${idPrefix}"`);
       return;
     }
   }
@@ -412,27 +401,10 @@ async function handleIncomingDiscordMessage(message: DiscordMessage): Promise<vo
   // Handle special commands
   if (content === '!status') {
     const sessions = getSessions();
+    const statusText = formatDiscordSessionList(sessions);
     if (sessions.length === 0) {
-      await sendDiscord('No active Claude sessions.');
+      await sendDiscord(statusText);
     } else {
-      const statusText = sessions
-        .map((s) => {
-          const shortId = s.id.substring(0, 8);
-          const dirName = s.workingDirectory?.split('/').pop() || 'unknown';
-          const statusIcon =
-            s.status === 'waiting'
-              ? ':hourglass:'
-              : s.status === 'active'
-                ? ':arrows_counterclockwise:'
-                : ':stop_button:';
-          return (
-            `${statusIcon} **${shortId}** (${s.status})\n` +
-            `    :file_folder: \`${dirName}\`\n` +
-            (s.currentTool ? `    :wrench: ${s.currentTool}\n` : '') +
-            `    _\`!session ${shortId} <msg>\`_`
-          );
-        })
-        .join('\n\n');
       await sendDiscord(`**Active Sessions:**\n\n${statusText}`);
     }
     return;
@@ -466,19 +438,11 @@ async function handleIncomingDiscordMessage(message: DiscordMessage): Promise<vo
     input = content.substring(8).trim();
   }
 
-  // Find target session
+  // Find target session using shared utility
   if (!targetSessionId) {
-    const sessions = getSessions();
-    const waitingSession = sessions.find((s) => s.status === 'waiting');
-    if (waitingSession) {
-      targetSessionId = waitingSession.id;
-    } else {
-      const activeSession = sessions
-        .filter((s) => s.status === 'active')
-        .sort((a, b) => b.lastActivity - a.lastActivity)[0];
-      if (activeSession) {
-        targetSessionId = activeSession.id;
-      }
+    const target = findTargetSession();
+    if (target) {
+      targetSessionId = target.id;
     }
   }
 
@@ -486,12 +450,6 @@ async function handleIncomingDiscordMessage(message: DiscordMessage): Promise<vo
     await sendDiscord(
       'No active Claude session found.\n\nUse `!status` to see available sessions.'
     );
-    return;
-  }
-
-  const session = getSession(targetSessionId);
-  if (!session) {
-    await sendDiscord(`Session "${targetSessionId}" not found.`);
     return;
   }
 

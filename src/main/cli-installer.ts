@@ -10,13 +10,7 @@ import * as path from 'path';
 import * as os from 'os';
 import { app } from 'electron';
 import { exec } from 'child_process';
-
-export interface CliStatus {
-  installed: boolean;
-  path: string | null;
-  targetPath: string;
-  error?: string;
-}
+import { CliStatus } from '../shared/types';
 
 // Where the CLI binary lives in the bundled app
 function getCliSourcePath(): string {

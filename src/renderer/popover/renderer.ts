@@ -20,6 +20,8 @@ const inputText = document.getElementById('input-text') as HTMLTextAreaElement;
 const inputCancel = document.getElementById('input-cancel') as HTMLButtonElement;
 const inputSend = document.getElementById('input-send') as HTMLButtonElement;
 const voiceControls = document.getElementById('voice-controls') as HTMLDivElement;
+const voiceBtn = document.getElementById('voice-btn') as HTMLButtonElement;
+const voiceStatus = document.getElementById('voice-status') as HTMLSpanElement;
 const serverStatusDot = document.getElementById('server-status-dot') as HTMLSpanElement;
 const serverStatusText = document.getElementById('server-status-text') as HTMLSpanElement;
 
@@ -40,11 +42,19 @@ function updateServerStatus(port: number, isConnected: boolean = true) {
   }
 }
 
+// Update voice status display
+function updateVoiceStatus(text: string) {
+  if (voiceStatus) {
+    voiceStatus.textContent = text;
+  }
+}
+
 // Initialize
 async function init() {
-  // Load initial sessions
-  const sessions = await window.electronAPI.getSessions();
-  renderSessions(sessions);
+  try {
+    // Load initial sessions
+    const sessions = await window.electronAPI.getSessions();
+    renderSessions(sessions);
 
   // Listen for session updates
   window.electronAPI.onSessionsUpdated((sessions) => {
@@ -61,6 +71,29 @@ async function init() {
   if (settings.voiceInputEnabled && 'webkitSpeechRecognition' in window) {
     voiceControls.style.display = 'flex';
     setupSpeechRecognition();
+
+    // Footer voice button handler
+    if (voiceBtn) {
+      voiceBtn.addEventListener('click', () => {
+        if (isRecording) {
+          stopRecording();
+        } else {
+          // Find a waiting session to record for
+          window.electronAPI.getSessions().then(sessions => {
+            const waitingSession = sessions.find(s => s.status === 'waiting');
+            if (waitingSession) {
+              startRecording(waitingSession.id);
+            } else if (sessions.length > 0) {
+              startRecording(sessions[0].id);
+            } else {
+              window.electronAPI.showNotification('Voice Error', 'No active sessions to send voice input');
+            }
+          }).catch(() => {
+            window.electronAPI.showNotification('Voice Error', 'Could not fetch sessions');
+          });
+        }
+      });
+    }
   }
 
   // Listen for settings updates to refresh server status
@@ -80,21 +113,21 @@ async function init() {
   // Listen for incoming messages from external services
   // These handlers allow the UI to respond to messages received via SMS, Telegram, and Discord
   window.electronAPI.onSmsReceived((message) => {
-    console.log('SMS received:', message.from, message.body.substring(0, 50));
     // The main process already handles sending input to Claude sessions
     // Show a brief notification in the renderer
     showMessageIndicator('SMS', message.from);
   });
 
   window.electronAPI.onTelegramReceived((message) => {
-    console.log('Telegram received:', message.username, message.text.substring(0, 50));
     showMessageIndicator('Telegram', message.username || 'Unknown');
   });
 
   window.electronAPI.onDiscordReceived((message) => {
-    console.log('Discord received:', message.username, message.content.substring(0, 50));
     showMessageIndicator('Discord', message.username || 'Unknown');
   });
+  } catch (error) {
+    console.error('Failed to initialize:', error);
+  }
 }
 
 // Show a brief indicator when external messages are received
@@ -213,13 +246,19 @@ function hideInputModal() {
 async function sendInput() {
   if (!currentInputSessionId || !inputText.value.trim()) return;
 
-  const success = await window.electronAPI.sendInputToSession(
-    currentInputSessionId,
-    inputText.value.trim()
-  );
+  try {
+    const success = await window.electronAPI.sendInputToSession(
+      currentInputSessionId,
+      inputText.value.trim()
+    );
 
-  if (success) {
-    window.electronAPI.showNotification('Input Sent', 'Your input was sent to Claude');
+    if (success) {
+      window.electronAPI.showNotification('Input Sent', 'Your input was sent to Claude');
+    } else {
+      window.electronAPI.showNotification('Input Failed', 'Could not send input to Claude session');
+    }
+  } catch (error) {
+    window.electronAPI.showNotification('Input Error', 'Failed to send input');
   }
 
   hideInputModal();
@@ -247,7 +286,13 @@ function setupSpeechRecognition() {
     const result = event.results[event.results.length - 1];
     const transcript = result[0].transcript as string;
 
+    // Update voice status with interim results
+    if (!result.isFinal) {
+      updateVoiceStatus(transcript);
+    }
+
     if (result.isFinal && recordingSessionId) {
+      updateVoiceStatus(`Sent: "${transcript.substring(0, 30)}..."`);
       window.electronAPI.sendVoiceInputResult(recordingSessionId, transcript);
       stopRecording();
     }
@@ -255,13 +300,33 @@ function setupSpeechRecognition() {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   recognition.onerror = (event: any) => {
-    console.error('Speech recognition error:', event.error);
+    // Show user-friendly error messages
+    let errorMessage = 'Voice recognition error';
+    switch (event.error) {
+      case 'no-speech':
+        errorMessage = 'No speech detected';
+        break;
+      case 'audio-capture':
+        errorMessage = 'Microphone not available';
+        break;
+      case 'not-allowed':
+        errorMessage = 'Microphone access denied';
+        break;
+      case 'network':
+        errorMessage = 'Network error';
+        break;
+      default:
+        errorMessage = `Error: ${event.error}`;
+    }
+    updateVoiceStatus(errorMessage);
+    window.electronAPI.showNotification('Voice Error', errorMessage);
     stopRecording();
   };
 
   recognition.onend = () => {
     if (isRecording && recognition) {
       // Restart if still recording
+      updateVoiceStatus('Listening...');
       recognition.start();
     }
   };
@@ -277,13 +342,20 @@ function startRecording(sessionId: string) {
 
   isRecording = true;
   recordingSessionId = sessionId;
+  updateVoiceStatus('Listening...');
+
+  // Update footer button state
+  if (voiceBtn) {
+    voiceBtn.classList.add('recording');
+    voiceBtn.textContent = '⏹️';
+  }
 
   try {
     recognition.start();
     // Re-render to show recording state
-    void window.electronAPI.getSessions().then(renderSessions);
+    void window.electronAPI.getSessions().then(renderSessions).catch(() => {});
   } catch (e) {
-    console.error('Error starting recognition:', e);
+    updateVoiceStatus('Failed to start');
     stopRecording();
   }
 }
@@ -292,12 +364,21 @@ function stopRecording() {
   isRecording = false;
   recordingSessionId = null;
 
+  // Clear voice status after a delay
+  setTimeout(() => updateVoiceStatus(''), 2000);
+
+  // Update footer button state
+  if (voiceBtn) {
+    voiceBtn.classList.remove('recording');
+    voiceBtn.textContent = '🎤';
+  }
+
   if (recognition) {
     recognition.stop();
   }
 
   // Re-render to clear recording state
-  void window.electronAPI.getSessions().then(renderSessions);
+  void window.electronAPI.getSessions().then(renderSessions).catch(() => {});
 }
 /* eslint-enable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
 
@@ -335,5 +416,9 @@ void init();
 
 // Refresh sessions periodically
 setInterval(() => {
-  void window.electronAPI.getSessions().then(renderSessions);
+  void window.electronAPI.getSessions()
+    .then(renderSessions)
+    .catch(() => {
+      // Silently handle refresh errors - will retry on next interval
+    });
 }, 5000);

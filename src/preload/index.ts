@@ -1,63 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
-// IPC channel names - duplicated here because preload scripts can't import from other modules
-const IPC_CHANNELS = {
-  // Settings
-  GET_SETTINGS: 'get-settings',
-  SAVE_SETTINGS: 'save-settings',
-  SETTINGS_UPDATED: 'settings-updated',
-
-  // Sessions
-  GET_SESSIONS: 'get-sessions',
-  SESSIONS_UPDATED: 'sessions-updated',
-  SESSION_EVENT: 'session-event',
-
-  // Voice
-  START_VOICE_INPUT: 'start-voice-input',
-  STOP_VOICE_INPUT: 'stop-voice-input',
-  VOICE_INPUT_RESULT: 'voice-input-result',
-  SPEAK_TEXT: 'speak-text',
-
-  // SMS / Twilio
-  SEND_SMS: 'send-sms',
-  SMS_RECEIVED: 'sms-received',
-  SETUP_TWILIO: 'setup-twilio',
-  GET_TWILIO_NUMBERS: 'get-twilio-numbers',
-  BUY_TWILIO_NUMBER: 'buy-twilio-number',
-
-  // Telegram
-  SEND_TELEGRAM: 'send-telegram',
-  TELEGRAM_RECEIVED: 'telegram-received',
-  SETUP_TELEGRAM: 'setup-telegram',
-  TEST_TELEGRAM: 'test-telegram',
-
-  // Discord
-  SEND_DISCORD: 'send-discord',
-  DISCORD_RECEIVED: 'discord-received',
-  SETUP_DISCORD: 'setup-discord',
-  TEST_DISCORD: 'test-discord',
-
-  // Window controls
-  OPEN_SETTINGS: 'open-settings',
-  CLOSE_WINDOW: 'close-window',
-  TOGGLE_POPOVER: 'toggle-popover',
-
-  // Input response
-  SEND_INPUT_TO_SESSION: 'send-input-to-session',
-
-  // Notifications
-  SHOW_NOTIFICATION: 'show-notification',
-
-  // Claude Code hook management
-  INSTALL_HOOKS: 'install-hooks',
-  UNINSTALL_HOOKS: 'uninstall-hooks',
-  GET_HOOK_STATUS: 'get-hook-status',
-
-  // CLI wrapper management
-  INSTALL_CLI: 'install-cli',
-  UNINSTALL_CLI: 'uninstall-cli',
-  GET_CLI_STATUS: 'get-cli-status',
-} as const;
+// Import IPC_CHANNELS from shared types (single source of truth)
+import { IPC_CHANNELS } from '../shared/types';
 
 // Type imports for TypeScript (these are erased at runtime)
 import type {
@@ -92,11 +36,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     const handler = (_: Electron.IpcRendererEvent, sessions: ClaudeSession[]) => callback(sessions);
     ipcRenderer.on(IPC_CHANNELS.SESSIONS_UPDATED, handler);
     return () => ipcRenderer.removeListener(IPC_CHANNELS.SESSIONS_UPDATED, handler);
-  },
-  onSessionEvent: (callback: (event: unknown) => void) => {
-    const handler = (_: Electron.IpcRendererEvent, event: unknown) => callback(event);
-    ipcRenderer.on(IPC_CHANNELS.SESSION_EVENT, handler);
-    return () => ipcRenderer.removeListener(IPC_CHANNELS.SESSION_EVENT, handler);
   },
 
   // Voice
@@ -189,6 +128,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   showNotification: (title: string, body: string) =>
     ipcRenderer.send(IPC_CHANNELS.SHOW_NOTIFICATION, title, body),
 
+  // External URLs
+  openExternalUrl: (url: string) => ipcRenderer.send(IPC_CHANNELS.OPEN_EXTERNAL_URL, url),
+
   // Claude Code hook management
   installHooks: (): Promise<{ success: boolean; message: string }> =>
     ipcRenderer.invoke(IPC_CHANNELS.INSTALL_HOOKS) as Promise<{
@@ -228,7 +170,6 @@ declare global {
 
       getSessions: () => Promise<ClaudeSession[]>;
       onSessionsUpdated: (callback: (sessions: ClaudeSession[]) => void) => () => void;
-      onSessionEvent: (callback: (event: unknown) => void) => () => void;
 
       startVoiceInput: (sessionId: string) => Promise<boolean>;
       stopVoiceInput: () => Promise<{ sessionId: string | null }>;
@@ -268,6 +209,8 @@ declare global {
       togglePopover: () => void;
 
       showNotification: (title: string, body: string) => void;
+
+      openExternalUrl: (url: string) => void;
 
       installHooks: () => Promise<{ success: boolean; message: string }>;
       uninstallHooks: () => Promise<{ success: boolean; message: string }>;

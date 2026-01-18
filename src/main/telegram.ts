@@ -3,8 +3,14 @@ import * as https from 'https';
 import { BrowserWindow } from 'electron';
 import { IPC_CHANNELS, TelegramMessage, SetupResult } from '../shared/types';
 import { sendInputToSession } from './input-handler';
-import { getSessions, getSession } from './sessions';
+import { getSessions } from './sessions';
 import { log } from './logger';
+import {
+  findSessionById,
+  findTargetSession,
+  formatSessionList,
+  formatAmbiguousMatches,
+} from './session-utils';
 
 let mainWindow: BrowserWindow | null = null;
 let pollingInterval: NodeJS.Timeout | null = null;
@@ -243,31 +249,6 @@ export function stopTelegramPolling(): void {
   }
 }
 
-// Find session by full or partial ID
-function findSessionById(
-  idPrefix: string
-): { id: string; session: ReturnType<typeof getSession> } | null {
-  // Try exact match first
-  const exactSession = getSession(idPrefix);
-  if (exactSession) {
-    return { id: idPrefix, session: exactSession };
-  }
-
-  // Try prefix match
-  const sessions = getSessions();
-  const matches = sessions.filter((s) => s.id.startsWith(idPrefix));
-
-  if (matches.length === 1) {
-    return { id: matches[0].id, session: matches[0] };
-  }
-
-  if (matches.length > 1) {
-    return null; // Ambiguous
-  }
-
-  return null;
-}
-
 // Handle incoming message as Claude input
 async function handleIncomingTelegramMessage(message: TelegramMessage): Promise<void> {
   const text = message.text.trim();
@@ -281,24 +262,15 @@ async function handleIncomingTelegramMessage(message: TelegramMessage): Promise<
     const idPrefix = sessionMatch[1];
     input = sessionMatch[2].trim();
 
-    // Find session by prefix
-    const found = findSessionById(idPrefix);
-    if (found) {
-      targetSessionId = found.id;
+    // Find session by prefix using shared utility
+    const result = findSessionById(idPrefix);
+    if (result.found && result.session) {
+      targetSessionId = result.session.id;
+    } else if (result.ambiguous && result.matches) {
+      await sendTelegram(formatAmbiguousMatches(result.matches, idPrefix), message.chatId);
+      return;
     } else {
-      const sessions = getSessions();
-      const matches = sessions.filter((s) => s.id.startsWith(idPrefix));
-      if (matches.length > 1) {
-        await sendTelegram(
-          `Multiple sessions match "${idPrefix}":\n` +
-            matches
-              .map((s) => `• \`${s.id.substring(0, 8)}\` - ${s.workingDirectory?.split('/').pop()}`)
-              .join('\n'),
-          message.chatId
-        );
-        return;
-      }
-      await sendTelegram(`No session found matching "${idPrefix}"`, message.chatId);
+      await sendTelegram(result.error || `No session found matching "${idPrefix}"`, message.chatId);
       return;
     }
   }
@@ -306,22 +278,10 @@ async function handleIncomingTelegramMessage(message: TelegramMessage): Promise<
   // Handle special commands
   if (text === '/status') {
     const sessions = getSessions();
+    const statusText = formatSessionList(sessions, 'markdown');
     if (sessions.length === 0) {
-      await sendTelegram('No active Claude sessions.', message.chatId);
+      await sendTelegram(statusText, message.chatId);
     } else {
-      const statusText = sessions
-        .map((s) => {
-          const shortId = s.id.substring(0, 8);
-          const dirName = s.workingDirectory?.split('/').pop() || 'unknown';
-          const statusIcon = s.status === 'waiting' ? '⏳' : s.status === 'active' ? '🔄' : '⏹';
-          return (
-            `${statusIcon} *${shortId}* (${s.status})\n` +
-            `    📁 \`${dirName}\`\n` +
-            (s.currentTool ? `    🔧 ${s.currentTool}\n` : '') +
-            `    _/session ${shortId} <msg>_`
-          );
-        })
-        .join('\n\n');
       await sendTelegram(`*Active Sessions:*\n\n${statusText}`, message.chatId);
     }
     return;
@@ -346,19 +306,11 @@ async function handleIncomingTelegramMessage(message: TelegramMessage): Promise<
     return;
   }
 
-  // Find target session
+  // Find target session using shared utility
   if (!targetSessionId) {
-    const sessions = getSessions();
-    const waitingSession = sessions.find((s) => s.status === 'waiting');
-    if (waitingSession) {
-      targetSessionId = waitingSession.id;
-    } else {
-      const activeSession = sessions
-        .filter((s) => s.status === 'active')
-        .sort((a, b) => b.lastActivity - a.lastActivity)[0];
-      if (activeSession) {
-        targetSessionId = activeSession.id;
-      }
+    const target = findTargetSession();
+    if (target) {
+      targetSessionId = target.id;
     }
   }
 
@@ -367,12 +319,6 @@ async function handleIncomingTelegramMessage(message: TelegramMessage): Promise<
       'No active Claude session found.\n\nUse `/status` to see available sessions.',
       message.chatId
     );
-    return;
-  }
-
-  const session = getSession(targetSessionId);
-  if (!session) {
-    await sendTelegram(`Session "${targetSessionId}" not found.`, message.chatId);
     return;
   }
 

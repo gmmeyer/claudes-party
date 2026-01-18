@@ -229,6 +229,11 @@ export function startHookServer(): void {
   server.on('error', (error: NodeJS.ErrnoException) => {
     log.error('Hook server error', { error: error.message, code: error.code });
     if (error.code === 'EADDRINUSE') {
+      const maxPort = 31548 + 10; // Maximum 10 port attempts
+      if (port >= maxPort) {
+        log.error('Failed to find available port after 10 attempts', { startPort: 31548, endPort: maxPort });
+        return;
+      }
       log.warn('Port in use, trying next port', { currentPort: port, nextPort: port + 1 });
       server?.close();
       // Try next port
