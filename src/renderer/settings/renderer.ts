@@ -637,10 +637,10 @@ testTelegramBtnEl.addEventListener('click', () => void testTelegram());
 setupDiscordBtnEl.addEventListener('click', () => void setupDiscord());
 testDiscordBtnEl.addEventListener('click', () => void testDiscord());
 
-// External links
+// External links - open in system browser
 document.getElementById('elevenlabs-link')?.addEventListener('click', (e) => {
   e.preventDefault();
-  window.electronAPI.showNotification('ElevenLabs', 'Visit elevenlabs.io to get your API key');
+  window.electronAPI.openExternalUrl('https://elevenlabs.io');
 });
 
 // Initialize

@@ -1,4 +1,4 @@
-import { app, ipcMain, BrowserWindow } from 'electron';
+import { app, ipcMain, BrowserWindow, shell } from 'electron';
 import {
   createPopoverWindow,
   createSettingsWindow,
@@ -269,6 +269,13 @@ ipcMain.handle(IPC_CHANNELS.SEND_INPUT_TO_SESSION, (_, sessionId: string, input:
 // Notifications
 ipcMain.on(IPC_CHANNELS.SHOW_NOTIFICATION, (_, title: string, body: string) => {
   showNotification(title, body);
+});
+
+// Open external URLs in system browser
+ipcMain.on(IPC_CHANNELS.OPEN_EXTERNAL_URL, (_, url: string) => {
+  if (url.startsWith('https://') || url.startsWith('http://')) {
+    void shell.openExternal(url);
+  }
 });
 
 // Handle voice input result from renderer (Web Speech API)
