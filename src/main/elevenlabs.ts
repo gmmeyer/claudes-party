@@ -5,6 +5,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { exec } from 'child_process';
+import { log } from './logger';
 
 let isRecording = false;
 let currentSessionId: string | null = null;
@@ -19,7 +20,7 @@ export async function speakText(text: string): Promise<void> {
   const settings = getSettings();
 
   if (!settings.elevenLabsApiKey || !settings.voiceOutputEnabled) {
-    console.log('Voice output disabled or no API key');
+    log.debug('Voice output disabled or no API key');
     return;
   }
 
@@ -31,7 +32,7 @@ export async function speakText(text: string): Promise<void> {
     );
     await playAudio(audioBuffer);
   } catch (error) {
-    console.error('Error speaking text:', error);
+    log.error('Error speaking text', { error: error instanceof Error ? error.message : String(error) });
   }
 }
 
@@ -104,7 +105,7 @@ function playAudio(audioBuffer: Buffer): Promise<void> {
       }
 
       if (error) {
-        console.error('Error playing audio:', error);
+        log.error('Error playing audio', { error: error.message });
         reject(error);
       } else {
         resolve();
@@ -152,14 +153,24 @@ export function getCurrentVoiceSessionId(): string | null {
   return currentSessionId;
 }
 
-// Alternative: ElevenLabs Speech-to-Text API (if they have one)
-// For now, we'll rely on browser's Web Speech API which is free
-// and works well for basic transcription
-
-export function transcribeWithElevenLabs(_audioBlob: Buffer): string {
-  // ElevenLabs currently focuses on TTS, not STT
-  // This is a placeholder for if they add STT capability
-  // For now, the renderer uses Web Speech API
-  console.log('ElevenLabs STT not implemented, using Web Speech API in renderer');
-  return '';
+/**
+ * Speech-to-Text transcription.
+ *
+ * NOTE: ElevenLabs focuses on TTS (text-to-speech), not STT (speech-to-text).
+ * This application uses the browser's Web Speech API for voice input, which:
+ * - Is free (no API key required)
+ * - Works offline in some browsers
+ * - Runs in the renderer process via the popover UI
+ *
+ * If ElevenLabs adds STT in the future, this function can be implemented.
+ * For now, voice input is handled in src/renderer/popover/renderer.ts
+ * using the Web Speech API (webkitSpeechRecognition).
+ *
+ * @throws Error Always throws since STT is not implemented via ElevenLabs
+ */
+export function transcribeWithElevenLabs(_audioBlob: Buffer): never {
+  throw new Error(
+    'ElevenLabs STT is not implemented. Voice input uses Web Speech API in the renderer. ' +
+    'See src/renderer/popover/renderer.ts for the speech recognition implementation.'
+  );
 }

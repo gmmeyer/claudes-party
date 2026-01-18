@@ -8,6 +8,7 @@ import { speakText } from './elevenlabs';
 import { sendSms } from './twilio';
 import { sendTelegram } from './telegram';
 import { sendDiscord } from './discord';
+import { log } from './logger';
 
 let server: Server | null = null;
 let popoverWindow: BrowserWindow | null = null;
@@ -214,7 +215,7 @@ export function startHookServer(): void {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true }));
       } catch (error) {
-        console.error('Error processing hook:', error);
+        log.error('Error processing hook', { error: error instanceof Error ? error.message : String(error) });
         res.writeHead(500);
         res.end(JSON.stringify({ error: 'Internal server error' }));
       }
@@ -222,13 +223,13 @@ export function startHookServer(): void {
   });
 
   server.listen(port, '127.0.0.1', () => {
-    console.log(`Hook server listening on http://127.0.0.1:${port}`);
+    log.info('Hook server started', { port, url: `http://127.0.0.1:${port}` });
   });
 
   server.on('error', (error: NodeJS.ErrnoException) => {
-    console.error('Hook server error:', error);
+    log.error('Hook server error', { error: error.message, code: error.code });
     if (error.code === 'EADDRINUSE') {
-      console.log(`Port ${port} is in use, trying ${port + 1}`);
+      log.warn('Port in use, trying next port', { currentPort: port, nextPort: port + 1 });
       server?.close();
       // Try next port
       const newSettings = { ...settings, hookServerPort: port + 1 };

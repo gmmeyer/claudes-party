@@ -1,5 +1,7 @@
 import { Notification, app } from 'electron';
 import * as path from 'path';
+import { log } from './logger';
+import { showPopover, getPopoverWindow } from './windows';
 
 let iconPath: string;
 
@@ -10,7 +12,7 @@ export function initNotifications(): void {
 
 export function showNotification(title: string, body: string): void {
   if (!Notification.isSupported()) {
-    console.log('Notifications not supported on this system');
+    log.debug('Notifications not supported on this system');
     return;
   }
 
@@ -23,8 +25,13 @@ export function showNotification(title: string, body: string): void {
   });
 
   notification.on('click', () => {
-    // Could open the popover or settings window when clicked
-    console.log('Notification clicked');
+    log.debug('Notification clicked, showing popover');
+    // Show and focus the popover window when notification is clicked
+    showPopover();
+    const popover = getPopoverWindow();
+    if (popover && !popover.isDestroyed()) {
+      popover.focus();
+    }
   });
 
   notification.show();

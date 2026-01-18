@@ -1,6 +1,7 @@
 import { BrowserWindow, screen } from 'electron';
 import * as path from 'path';
 import { getSettings } from './store';
+import { log } from './logger';
 
 let popoverWindow: BrowserWindow | null = null;
 let settingsWindow: BrowserWindow | null = null;
@@ -71,14 +72,14 @@ export function createPopoverWindow(): BrowserWindow {
 }
 
 export function createSettingsWindow(): BrowserWindow {
-  console.log('createSettingsWindow called');
+  log.debug('createSettingsWindow called');
   if (settingsWindow && !settingsWindow.isDestroyed()) {
-    console.log('Settings window exists, focusing');
+    log.debug('Settings window exists, focusing');
     settingsWindow.focus();
     return settingsWindow;
   }
 
-  console.log('Creating new settings window');
+  log.debug('Creating new settings window');
   const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
 
   settingsWindow = new BrowserWindow({
@@ -105,13 +106,13 @@ export function createSettingsWindow(): BrowserWindow {
   settingsWindow.setMenuBarVisibility(false);
 
   settingsWindow.once('ready-to-show', () => {
-    console.log('Settings window ready-to-show');
+    log.debug('Settings window ready-to-show');
     settingsWindow?.show();
     settingsWindow?.focus();
   });
 
   settingsWindow.webContents.on('did-fail-load', (_, errorCode, errorDescription) => {
-    console.error('Settings window failed to load:', errorCode, errorDescription);
+    log.error('Settings window failed to load', { errorCode, errorDescription });
   });
 
   settingsWindow.on('closed', () => {

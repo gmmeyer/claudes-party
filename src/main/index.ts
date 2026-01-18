@@ -42,6 +42,7 @@ import { sendInputToSession, cleanupOldInputs } from './input-handler';
 import { installHooks, uninstallHooks, getHookStatus } from './claude-config';
 import { installCli, uninstallCli, getCliStatus } from './cli-installer';
 import { IPC_CHANNELS, AppSettings } from '../shared/types';
+import { log, initializeFileLogging } from './logger';
 
 // Prevent multiple instances
 const gotTheLock = app.requestSingleInstanceLock();
@@ -61,6 +62,9 @@ if (!gotTheLock) {
 
 // Handle app ready
 void app.whenReady().then(() => {
+  // Initialize file logging now that app is ready
+  initializeFileLogging();
+
   // Initialize notifications
   initNotifications();
 
@@ -105,7 +109,7 @@ void app.whenReady().then(() => {
     updateTrayIcon(sessions.length > 0);
   }, 5000);
 
-  console.log(`Claude's Party started. Hook server on port ${getServerPort()}`);
+  log.info(`Claude's Party started`, { port: getServerPort() });
 });
 
 // IPC Handlers
@@ -242,7 +246,7 @@ ipcMain.handle(IPC_CHANNELS.TEST_DISCORD, async () => {
 
 // Window controls
 ipcMain.on(IPC_CHANNELS.OPEN_SETTINGS, () => {
-  console.log('IPC: OPEN_SETTINGS received');
+  log.debug('IPC: OPEN_SETTINGS received');
   createSettingsWindow();
 });
 
@@ -332,9 +336,9 @@ app.on('activate', () => {
 
 // Handle uncaught errors
 process.on('uncaughtException', (error) => {
-  console.error('Uncaught exception:', error);
+  log.error('Uncaught exception', { error: error.message, stack: error.stack });
 });
 
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled rejection at:', promise, 'reason:', reason);
+process.on('unhandledRejection', (reason, _promise) => {
+  log.error('Unhandled rejection', { reason: String(reason) });
 });

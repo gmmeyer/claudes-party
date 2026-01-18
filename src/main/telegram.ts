@@ -4,6 +4,7 @@ import { BrowserWindow } from 'electron';
 import { IPC_CHANNELS, TelegramMessage, SetupResult } from '../shared/types';
 import { sendInputToSession } from './input-handler';
 import { getSessions, getSession } from './sessions';
+import { log } from './logger';
 
 let mainWindow: BrowserWindow | null = null;
 let pollingInterval: NodeJS.Timeout | null = null;
@@ -18,13 +19,13 @@ export async function sendTelegram(message: string, chatId?: string): Promise<bo
   const settings = getSettings();
 
   if (!settings.telegramBotToken) {
-    console.log('Telegram bot token not configured');
+    log.debug('Telegram bot token not configured');
     return false;
   }
 
   const targetChatId = chatId || settings.telegramChatId;
   if (!targetChatId) {
-    console.log('No Telegram chat ID configured');
+    log.debug('No Telegram chat ID configured');
     return false;
   }
 
@@ -32,7 +33,7 @@ export async function sendTelegram(message: string, chatId?: string): Promise<bo
     await sendTelegramMessage(settings.telegramBotToken, targetChatId, message);
     return true;
   } catch (error) {
-    console.error('Error sending Telegram message:', error);
+    log.error('Error sending Telegram message', { error: error instanceof Error ? error.message : String(error) });
     return false;
   }
 }
@@ -61,10 +62,10 @@ function sendTelegramMessage(botToken: string, chatId: string, text: string): Pr
       res.on('data', (chunk: Buffer) => (data += chunk.toString()));
       res.on('end', () => {
         if (res.statusCode === 200) {
-          console.log('Telegram message sent successfully');
+          log.info('Telegram message sent successfully');
           resolve();
         } else {
-          console.error('Telegram error response:', data);
+          log.error('Telegram error response', { response: data });
           reject(new Error(`Telegram API error: ${res.statusCode}`));
         }
       });
@@ -184,7 +185,7 @@ export function startTelegramPolling(): void {
     clearInterval(pollingInterval);
   }
 
-  console.log('Starting Telegram polling...');
+  log.info('Starting Telegram polling');
 
   const poll = async () => {
     try {
@@ -203,7 +204,7 @@ export function startTelegramPolling(): void {
             username: update.message.from.username || update.message.from.first_name,
           };
 
-          console.log('Received Telegram message:', telegramMessage);
+          log.info('Received Telegram message', { chatId: telegramMessage.chatId, username: telegramMessage.username, text: telegramMessage.text.substring(0, 50) });
 
           // Notify renderer
           if (mainWindow && !mainWindow.isDestroyed()) {
@@ -222,7 +223,7 @@ export function startTelegramPolling(): void {
         }
       }
     } catch (error) {
-      console.error('Telegram polling error:', error);
+      log.error('Telegram polling error', { error: error instanceof Error ? error.message : String(error) });
     }
   };
 
@@ -238,7 +239,7 @@ export function stopTelegramPolling(): void {
   if (pollingInterval) {
     clearInterval(pollingInterval);
     pollingInterval = null;
-    console.log('Stopped Telegram polling');
+    log.info('Stopped Telegram polling');
   }
 }
 
@@ -380,7 +381,7 @@ async function handleIncomingTelegramMessage(message: TelegramMessage): Promise<
   const shortId = targetSessionId.substring(0, 8);
 
   if (success) {
-    console.log(`Telegram input sent to session ${targetSessionId}: ${input}`);
+    log.info('Telegram input sent to session', { sessionId: targetSessionId, input: input.substring(0, 50) });
     const truncatedInput = input.length > 50 ? input.substring(0, 50) + '...' : input;
     await sendTelegram(`✅ Sent to *${shortId}*: "${truncatedInput}"`, message.chatId);
   } else {

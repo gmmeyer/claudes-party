@@ -83,6 +83,7 @@
     "@elevenlabs/elevenlabs-js": "^2.31.0",
     "electron-store": "^8.1.0",
     "twilio": "^5.11.2",
+    "winston": "^3.19.0",
     "ws": "^8.14.0"
   }
 }
