@@ -8,6 +8,17 @@ interface AppSettings {
   twilioPhoneNumber: string;
   userPhoneNumber: string;
   smsNotificationsEnabled: boolean;
+  smsReplyEnabled: boolean;
+  twilioWebhookUrl: string;
+  telegramBotToken: string;
+  telegramChatId: string;
+  telegramNotificationsEnabled: boolean;
+  telegramReplyEnabled: boolean;
+  discordWebhookUrl: string;
+  discordBotToken: string;
+  discordChannelId: string;
+  discordNotificationsEnabled: boolean;
+  discordReplyEnabled: boolean;
   desktopNotificationsEnabled: boolean;
   notifyOnSessionEnd: boolean;
   notifyOnError: boolean;
@@ -25,20 +36,57 @@ interface HookStatus {
   hookTypes: string[];
 }
 
+interface SetupResult {
+  success: boolean;
+  message: string;
+  data?: Record<string, unknown>;
+}
+
 // DOM Elements - Settings
 const elevenLabsApiKeyEl = document.getElementById('elevenlabs-api-key') as HTMLInputElement;
 const elevenLabsVoiceIdEl = document.getElementById('elevenlabs-voice-id') as HTMLInputElement;
 const voiceInputEnabledEl = document.getElementById('voice-input-enabled') as HTMLInputElement;
 const voiceOutputEnabledEl = document.getElementById('voice-output-enabled') as HTMLInputElement;
 
+// Twilio
 const twilioAccountSidEl = document.getElementById('twilio-account-sid') as HTMLInputElement;
 const twilioAuthTokenEl = document.getElementById('twilio-auth-token') as HTMLInputElement;
 const twilioPhoneNumberEl = document.getElementById('twilio-phone-number') as HTMLInputElement;
 const userPhoneNumberEl = document.getElementById('user-phone-number') as HTMLInputElement;
+const twilioWebhookUrlEl = document.getElementById('twilio-webhook-url') as HTMLInputElement;
 const smsNotificationsEnabledEl = document.getElementById(
   'sms-notifications-enabled'
 ) as HTMLInputElement;
+const smsReplyEnabledEl = document.getElementById('sms-reply-enabled') as HTMLInputElement;
+const setupTwilioBtnEl = document.getElementById('setup-twilio-btn') as HTMLButtonElement;
+const twilioStatusEl = document.getElementById('twilio-status') as HTMLDivElement;
 
+// Telegram
+const telegramBotTokenEl = document.getElementById('telegram-bot-token') as HTMLInputElement;
+const telegramChatIdEl = document.getElementById('telegram-chat-id') as HTMLInputElement;
+const telegramNotificationsEnabledEl = document.getElementById(
+  'telegram-notifications-enabled'
+) as HTMLInputElement;
+const telegramReplyEnabledEl = document.getElementById(
+  'telegram-reply-enabled'
+) as HTMLInputElement;
+const setupTelegramBtnEl = document.getElementById('setup-telegram-btn') as HTMLButtonElement;
+const testTelegramBtnEl = document.getElementById('test-telegram-btn') as HTMLButtonElement;
+const telegramStatusEl = document.getElementById('telegram-status') as HTMLDivElement;
+
+// Discord
+const discordWebhookUrlEl = document.getElementById('discord-webhook-url') as HTMLInputElement;
+const discordBotTokenEl = document.getElementById('discord-bot-token') as HTMLInputElement;
+const discordChannelIdEl = document.getElementById('discord-channel-id') as HTMLInputElement;
+const discordNotificationsEnabledEl = document.getElementById(
+  'discord-notifications-enabled'
+) as HTMLInputElement;
+const discordReplyEnabledEl = document.getElementById('discord-reply-enabled') as HTMLInputElement;
+const setupDiscordBtnEl = document.getElementById('setup-discord-btn') as HTMLButtonElement;
+const testDiscordBtnEl = document.getElementById('test-discord-btn') as HTMLButtonElement;
+const discordStatusEl = document.getElementById('discord-status') as HTMLDivElement;
+
+// Desktop notifications
 const desktopNotificationsEnabledEl = document.getElementById(
   'desktop-notifications-enabled'
 ) as HTMLInputElement;
@@ -46,15 +94,18 @@ const notifyOnSessionEndEl = document.getElementById('notify-on-session-end') as
 const notifyOnErrorEl = document.getElementById('notify-on-error') as HTMLInputElement;
 const notifyOnWaitingEl = document.getElementById('notify-on-waiting') as HTMLInputElement;
 
+// Appearance
 const popoverPositionEl = document.getElementById('popover-position') as HTMLSelectElement;
 const popoverOpacityEl = document.getElementById('popover-opacity') as HTMLInputElement;
 const opacityValueEl = document.getElementById('opacity-value') as HTMLSpanElement;
 const alwaysOnTopEl = document.getElementById('always-on-top') as HTMLInputElement;
 
+// Hook settings
 const hookServerPortEl = document.getElementById('hook-server-port') as HTMLInputElement;
 const hookConfigEl = document.getElementById('hook-config') as HTMLElement;
 const copyHookConfigEl = document.getElementById('copy-hook-config') as HTMLButtonElement;
 
+// Buttons
 const saveBtnEl = document.getElementById('save-btn') as HTMLButtonElement;
 const resetBtnEl = document.getElementById('reset-btn') as HTMLButtonElement;
 
@@ -86,7 +137,20 @@ function applySettingsToForm(settings: AppSettings) {
   twilioAuthTokenEl.value = settings.twilioAuthToken;
   twilioPhoneNumberEl.value = settings.twilioPhoneNumber;
   userPhoneNumberEl.value = settings.userPhoneNumber;
+  twilioWebhookUrlEl.value = settings.twilioWebhookUrl || '';
   smsNotificationsEnabledEl.checked = settings.smsNotificationsEnabled;
+  smsReplyEnabledEl.checked = settings.smsReplyEnabled;
+
+  telegramBotTokenEl.value = settings.telegramBotToken;
+  telegramChatIdEl.value = settings.telegramChatId;
+  telegramNotificationsEnabledEl.checked = settings.telegramNotificationsEnabled;
+  telegramReplyEnabledEl.checked = settings.telegramReplyEnabled;
+
+  discordWebhookUrlEl.value = settings.discordWebhookUrl;
+  discordBotTokenEl.value = settings.discordBotToken;
+  discordChannelIdEl.value = settings.discordChannelId;
+  discordNotificationsEnabledEl.checked = settings.discordNotificationsEnabled;
+  discordReplyEnabledEl.checked = settings.discordReplyEnabled;
 
   desktopNotificationsEnabledEl.checked = settings.desktopNotificationsEnabled;
   notifyOnSessionEndEl.checked = settings.notifyOnSessionEnd;
@@ -112,7 +176,20 @@ function getFormSettings(): Partial<AppSettings> {
     twilioAuthToken: twilioAuthTokenEl.value,
     twilioPhoneNumber: twilioPhoneNumberEl.value,
     userPhoneNumber: userPhoneNumberEl.value,
+    twilioWebhookUrl: twilioWebhookUrlEl.value,
     smsNotificationsEnabled: smsNotificationsEnabledEl.checked,
+    smsReplyEnabled: smsReplyEnabledEl.checked,
+
+    telegramBotToken: telegramBotTokenEl.value,
+    telegramChatId: telegramChatIdEl.value,
+    telegramNotificationsEnabled: telegramNotificationsEnabledEl.checked,
+    telegramReplyEnabled: telegramReplyEnabledEl.checked,
+
+    discordWebhookUrl: discordWebhookUrlEl.value,
+    discordBotToken: discordBotTokenEl.value,
+    discordChannelId: discordChannelIdEl.value,
+    discordNotificationsEnabled: discordNotificationsEnabledEl.checked,
+    discordReplyEnabled: discordReplyEnabledEl.checked,
 
     desktopNotificationsEnabled: desktopNotificationsEnabledEl.checked,
     notifyOnSessionEnd: notifyOnSessionEndEl.checked,
@@ -148,6 +225,14 @@ function showToast(message: string, isError = false) {
   setTimeout(() => {
     toastEl.classList.add('hidden');
   }, 3000);
+}
+
+function showStatusMessage(element: HTMLDivElement, message: string, isError = false) {
+  element.textContent = message;
+  element.className = isError ? 'status-message error' : 'status-message success';
+  setTimeout(() => {
+    element.classList.add('hidden');
+  }, 5000);
 }
 
 // Hook Status Management
@@ -232,6 +317,135 @@ async function uninstallHooks() {
   }
 }
 
+// Twilio Setup
+async function setupTwilio() {
+  // First save current settings
+  await window.electronAPI.saveSettings({
+    twilioAccountSid: twilioAccountSidEl.value,
+    twilioAuthToken: twilioAuthTokenEl.value,
+  });
+
+  setupTwilioBtnEl.disabled = true;
+  setupTwilioBtnEl.textContent = 'Setting up...';
+
+  try {
+    const result: SetupResult = await window.electronAPI.setupTwilio(twilioWebhookUrlEl.value);
+
+    if (result.success) {
+      showStatusMessage(twilioStatusEl, result.message);
+      // Reload settings to get the new phone number
+      const settings = await window.electronAPI.getSettings();
+      twilioPhoneNumberEl.value = settings.twilioPhoneNumber;
+    } else {
+      showStatusMessage(twilioStatusEl, result.message, true);
+    }
+  } catch (error) {
+    showStatusMessage(twilioStatusEl, 'Setup failed: ' + String(error), true);
+  } finally {
+    setupTwilioBtnEl.disabled = false;
+    setupTwilioBtnEl.textContent = 'Auto Setup';
+  }
+}
+
+// Telegram Setup
+async function setupTelegram() {
+  // First save current settings
+  await window.electronAPI.saveSettings({
+    telegramBotToken: telegramBotTokenEl.value,
+  });
+
+  setupTelegramBtnEl.disabled = true;
+  setupTelegramBtnEl.textContent = 'Setting up...';
+
+  try {
+    const result: SetupResult = await window.electronAPI.setupTelegram();
+
+    if (result.success) {
+      showStatusMessage(telegramStatusEl, result.message);
+      // Reload settings to get the chat ID if auto-detected
+      const settings = await window.electronAPI.getSettings();
+      if (settings.telegramChatId) {
+        telegramChatIdEl.value = settings.telegramChatId;
+      }
+    } else {
+      showStatusMessage(telegramStatusEl, result.message, true);
+    }
+  } catch (error) {
+    showStatusMessage(telegramStatusEl, 'Setup failed: ' + String(error), true);
+  } finally {
+    setupTelegramBtnEl.disabled = false;
+    setupTelegramBtnEl.textContent = 'Setup';
+  }
+}
+
+async function testTelegram() {
+  testTelegramBtnEl.disabled = true;
+  testTelegramBtnEl.textContent = 'Testing...';
+
+  try {
+    const result: SetupResult = await window.electronAPI.testTelegram();
+
+    if (result.success) {
+      showStatusMessage(telegramStatusEl, result.message);
+    } else {
+      showStatusMessage(telegramStatusEl, result.message, true);
+    }
+  } catch (error) {
+    showStatusMessage(telegramStatusEl, 'Test failed: ' + String(error), true);
+  } finally {
+    testTelegramBtnEl.disabled = false;
+    testTelegramBtnEl.textContent = 'Test Telegram';
+  }
+}
+
+// Discord Setup
+async function setupDiscord() {
+  // First save current settings
+  await window.electronAPI.saveSettings({
+    discordWebhookUrl: discordWebhookUrlEl.value,
+    discordBotToken: discordBotTokenEl.value,
+    discordChannelId: discordChannelIdEl.value,
+  });
+
+  setupDiscordBtnEl.disabled = true;
+  setupDiscordBtnEl.textContent = 'Setting up...';
+
+  try {
+    const result: SetupResult = await window.electronAPI.setupDiscord();
+
+    if (result.success) {
+      showStatusMessage(discordStatusEl, result.message);
+    } else {
+      showStatusMessage(discordStatusEl, result.message, true);
+    }
+  } catch (error) {
+    showStatusMessage(discordStatusEl, 'Setup failed: ' + String(error), true);
+  } finally {
+    setupDiscordBtnEl.disabled = false;
+    setupDiscordBtnEl.textContent = 'Setup Discord';
+  }
+}
+
+async function testDiscord() {
+  testDiscordBtnEl.disabled = true;
+  testDiscordBtnEl.textContent = 'Testing...';
+
+  try {
+    const result: SetupResult = await window.electronAPI.testDiscord();
+
+    if (result.success) {
+      showStatusMessage(discordStatusEl, result.message);
+    } else {
+      showStatusMessage(discordStatusEl, result.message, true);
+    }
+  } catch (error) {
+    showStatusMessage(discordStatusEl, 'Test failed: ' + String(error), true);
+  } finally {
+    testDiscordBtnEl.disabled = false;
+    testDiscordBtnEl.textContent = 'Test Discord';
+  }
+}
+
 // Event Listeners - Settings
 saveBtnEl.addEventListener('click', () => {
   void (async () => {
@@ -258,7 +472,18 @@ resetBtnEl.addEventListener('click', () => {
         twilioAuthToken: '',
         twilioPhoneNumber: '',
         userPhoneNumber: '',
+        twilioWebhookUrl: '',
         smsNotificationsEnabled: false,
+        smsReplyEnabled: true,
+        telegramBotToken: '',
+        telegramChatId: '',
+        telegramNotificationsEnabled: false,
+        telegramReplyEnabled: true,
+        discordWebhookUrl: '',
+        discordBotToken: '',
+        discordChannelId: '',
+        discordNotificationsEnabled: false,
+        discordReplyEnabled: true,
         desktopNotificationsEnabled: true,
         notifyOnSessionEnd: true,
         notifyOnError: true,
@@ -298,6 +523,17 @@ copyHookConfigEl.addEventListener('click', () => {
 installHooksBtnEl.addEventListener('click', () => void installHooks());
 uninstallHooksBtnEl.addEventListener('click', () => void uninstallHooks());
 refreshStatusBtnEl.addEventListener('click', () => void refreshHookStatus());
+
+// Event Listeners - Twilio
+setupTwilioBtnEl.addEventListener('click', () => void setupTwilio());
+
+// Event Listeners - Telegram
+setupTelegramBtnEl.addEventListener('click', () => void setupTelegram());
+testTelegramBtnEl.addEventListener('click', () => void testTelegram());
+
+// Event Listeners - Discord
+setupDiscordBtnEl.addEventListener('click', () => void setupDiscord());
+testDiscordBtnEl.addEventListener('click', () => void testDiscord());
 
 // External links
 document.getElementById('elevenlabs-link')?.addEventListener('click', (e) => {

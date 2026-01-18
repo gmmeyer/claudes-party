@@ -1,5 +1,15 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { IPC_CHANNELS, AppSettings, ClaudeSession, SmsMessage, HookStatus } from '../shared/types';
+import {
+  IPC_CHANNELS,
+  AppSettings,
+  ClaudeSession,
+  SmsMessage,
+  TelegramMessage,
+  DiscordMessage,
+  HookStatus,
+  SetupResult,
+  TwilioPhoneNumber,
+} from '../shared/types';
 
 // Expose safe APIs to renderer
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -50,7 +60,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.removeListener('stop-recording', handler);
   },
 
-  // SMS
+  // SMS / Twilio
   sendSms: (message: string, toNumber?: string): Promise<boolean> =>
     ipcRenderer.invoke(IPC_CHANNELS.SEND_SMS, message, toNumber) as Promise<boolean>,
   onSmsReceived: (callback: (message: SmsMessage) => void) => {
@@ -58,6 +68,52 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on(IPC_CHANNELS.SMS_RECEIVED, handler);
     return () => ipcRenderer.removeListener(IPC_CHANNELS.SMS_RECEIVED, handler);
   },
+  setupTwilio: (webhookUrl: string): Promise<SetupResult> =>
+    ipcRenderer.invoke(IPC_CHANNELS.SETUP_TWILIO, webhookUrl) as Promise<SetupResult>,
+  getTwilioNumbers: (): Promise<{
+    success: boolean;
+    numbers: TwilioPhoneNumber[];
+    message?: string;
+  }> =>
+    ipcRenderer.invoke(IPC_CHANNELS.GET_TWILIO_NUMBERS) as Promise<{
+      success: boolean;
+      numbers: TwilioPhoneNumber[];
+      message?: string;
+    }>,
+  buyTwilioNumber: (
+    countryCode?: string
+  ): Promise<{ success: boolean; phoneNumber?: TwilioPhoneNumber; message?: string }> =>
+    ipcRenderer.invoke(IPC_CHANNELS.BUY_TWILIO_NUMBER, countryCode) as Promise<{
+      success: boolean;
+      phoneNumber?: TwilioPhoneNumber;
+      message?: string;
+    }>,
+
+  // Telegram
+  sendTelegram: (message: string, chatId?: string): Promise<boolean> =>
+    ipcRenderer.invoke(IPC_CHANNELS.SEND_TELEGRAM, message, chatId) as Promise<boolean>,
+  onTelegramReceived: (callback: (message: TelegramMessage) => void) => {
+    const handler = (_: Electron.IpcRendererEvent, message: TelegramMessage) => callback(message);
+    ipcRenderer.on(IPC_CHANNELS.TELEGRAM_RECEIVED, handler);
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.TELEGRAM_RECEIVED, handler);
+  },
+  setupTelegram: (): Promise<SetupResult> =>
+    ipcRenderer.invoke(IPC_CHANNELS.SETUP_TELEGRAM) as Promise<SetupResult>,
+  testTelegram: (): Promise<SetupResult> =>
+    ipcRenderer.invoke(IPC_CHANNELS.TEST_TELEGRAM) as Promise<SetupResult>,
+
+  // Discord
+  sendDiscord: (message: string, channelId?: string): Promise<boolean> =>
+    ipcRenderer.invoke(IPC_CHANNELS.SEND_DISCORD, message, channelId) as Promise<boolean>,
+  onDiscordReceived: (callback: (message: DiscordMessage) => void) => {
+    const handler = (_: Electron.IpcRendererEvent, message: DiscordMessage) => callback(message);
+    ipcRenderer.on(IPC_CHANNELS.DISCORD_RECEIVED, handler);
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.DISCORD_RECEIVED, handler);
+  },
+  setupDiscord: (): Promise<SetupResult> =>
+    ipcRenderer.invoke(IPC_CHANNELS.SETUP_DISCORD) as Promise<SetupResult>,
+  testDiscord: (): Promise<SetupResult> =>
+    ipcRenderer.invoke(IPC_CHANNELS.TEST_DISCORD) as Promise<SetupResult>,
 
   // Input
   sendInputToSession: (sessionId: string, input: string): Promise<boolean> =>
@@ -108,6 +164,27 @@ declare global {
 
       sendSms: (message: string, toNumber?: string) => Promise<boolean>;
       onSmsReceived: (callback: (message: SmsMessage) => void) => () => void;
+      setupTwilio: (webhookUrl: string) => Promise<SetupResult>;
+      getTwilioNumbers: () => Promise<{
+        success: boolean;
+        numbers: TwilioPhoneNumber[];
+        message?: string;
+      }>;
+      buyTwilioNumber: (countryCode?: string) => Promise<{
+        success: boolean;
+        phoneNumber?: TwilioPhoneNumber;
+        message?: string;
+      }>;
+
+      sendTelegram: (message: string, chatId?: string) => Promise<boolean>;
+      onTelegramReceived: (callback: (message: TelegramMessage) => void) => () => void;
+      setupTelegram: () => Promise<SetupResult>;
+      testTelegram: () => Promise<SetupResult>;
+
+      sendDiscord: (message: string, channelId?: string) => Promise<boolean>;
+      onDiscordReceived: (callback: (message: DiscordMessage) => void) => () => void;
+      setupDiscord: () => Promise<SetupResult>;
+      testDiscord: () => Promise<SetupResult>;
 
       sendInputToSession: (sessionId: string, input: string) => Promise<boolean>;
 

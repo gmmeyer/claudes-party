@@ -18,7 +18,9 @@ src/
 │   ├── sessions.ts         # In-memory session state management
 │   ├── claude-config.ts    # Read/write Claude Code settings.json
 │   ├── elevenlabs.ts       # TTS via ElevenLabs API
-│   ├── twilio.ts           # SMS send/receive via Twilio API
+│   ├── twilio.ts           # SMS send/receive via Twilio API (with auto-setup)
+│   ├── telegram.ts         # Telegram bot integration
+│   ├── discord.ts          # Discord webhook and bot integration
 │   ├── notifications.ts    # Native OS notifications
 │   ├── input-handler.ts    # Send input back to Claude sessions
 │   └── store.ts            # Persistent settings via electron-store
@@ -96,7 +98,8 @@ Static files (HTML, CSS) are copied via `scripts/copy-static.js` since TypeScrip
 
 ### Settings Window
 - Standard framed window
-- Sections: Voice (ElevenLabs), SMS (Twilio), Notifications, Appearance, Claude Code Integration
+- Sections: Voice (ElevenLabs), SMS (Twilio), Telegram, Discord, Notifications, Appearance, Claude Code Integration
+- Each integration section has setup instructions, configuration fields, and test buttons
 - Hook installation UI with status indicator and Install/Uninstall buttons
 
 ## External Services
@@ -106,10 +109,63 @@ Static files (HTML, CSS) are copied via `scripts/copy-static.js` since TypeScrip
 - Voice input uses browser's Web Speech API (free), not ElevenLabs
 - API calls made via native `https` module in `elevenlabs.ts`
 
-### Twilio
+### Twilio (SMS)
 - SMS notifications when sessions complete or need input
-- Webhook server for receiving SMS responses (requires ngrok for local dev)
-- API calls via native `https` module in `twilio.ts`
+- **Auto-setup**: Automatically uses existing phone numbers or purchases one
+- Webhook server (port 31549) for receiving SMS responses
+- For local development, use ngrok: `ngrok http 31549`
+
+**Setup:**
+1. Create account at twilio.com
+2. Get Account SID and Auth Token from Console dashboard
+3. Click "Auto Setup" - will find/purchase a phone number automatically
+4. Enter your phone number to receive notifications
+5. (Optional) Set webhook URL for SMS replies
+
+**Reply format:**
+- Just text your message (goes to waiting/most recent session)
+- Or use `sessionId:message` for a specific session
+
+### Telegram
+- Telegram bot for notifications and bidirectional communication
+- Uses long-polling (no webhook needed)
+- Implemented in `telegram.ts`
+
+**Setup:**
+1. Message @BotFather on Telegram
+2. Send `/newbot` and follow prompts
+3. Copy the bot token to settings
+4. Click "Setup", then send any message to your bot
+5. Chat ID auto-detects
+
+**Bot commands:**
+- `/status` - Show active Claude sessions
+- `/help` - Show available commands
+- `/session <id> <message>` - Send to specific session
+- Or just send a message to reply to the waiting session
+
+### Discord
+- Discord webhook for notifications
+- Optional bot for receiving commands
+- Implemented in `discord.ts`
+
+**Setup (notifications only):**
+1. In Discord: Channel Settings → Integrations → Webhooks
+2. Create webhook, copy URL to settings
+
+**Setup (with replies):**
+1. Go to discord.com/developers/applications
+2. Create New Application → Bot → Copy token
+3. Enable "Message Content Intent" under Privileged Gateway Intents
+4. Invite bot to server with Read/Send Messages permissions
+5. Enable Developer Mode in Discord Settings → Advanced
+6. Right-click channel → Copy ID
+
+**Bot commands:**
+- `!status` - Show active sessions
+- `!help` - Show available commands
+- `!claude <message>` - Send to waiting session
+- `!session <id> <message>` - Send to specific session
 
 ## Common Tasks
 
@@ -160,3 +216,6 @@ curl -X POST http://127.0.0.1:31548/Notification \
 - Add session history/logging
 - Support multiple concurrent voice inputs
 - Add test coverage
+- Add WhatsApp integration via Twilio
+- Add Slack integration
+- Add Matrix/Element integration

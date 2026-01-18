@@ -6,6 +6,8 @@ import { getSettings, saveSettings } from './store';
 import { showNotification } from './notifications';
 import { speakText } from './elevenlabs';
 import { sendSms } from './twilio';
+import { sendTelegram } from './telegram';
+import { sendDiscord } from './discord';
 
 let server: Server | null = null;
 let popoverWindow: BrowserWindow | null = null;
@@ -32,11 +34,14 @@ async function handleHookEvent(event: HookEvent): Promise<void> {
 
   const settings = getSettings();
 
+  // Create a short session ID for easier reference (first 8 chars)
+  const shortId = event.sessionId.substring(0, 8);
+
   // Handle notifications based on event type
   switch (event.type) {
     case 'SessionEnd':
       if (settings.notifyOnSessionEnd) {
-        const message = `Claude session ended in ${session?.workingDirectory || 'unknown directory'}`;
+        const message = `Session ended in ${session?.workingDirectory || 'unknown directory'}`;
 
         if (settings.desktopNotificationsEnabled) {
           showNotification('Session Complete', message);
@@ -47,7 +52,22 @@ async function handleHookEvent(event: HookEvent): Promise<void> {
         }
 
         if (settings.smsNotificationsEnabled && settings.twilioAccountSid) {
-          await sendSms(message);
+          await sendSms(`[${shortId}] ${message}`);
+        }
+
+        if (settings.telegramNotificationsEnabled && settings.telegramBotToken) {
+          await sendTelegram(
+            `[*${shortId}*] ${message}\n\n_Reply to this session: /session ${shortId} <message>_`
+          );
+        }
+
+        if (
+          settings.discordNotificationsEnabled &&
+          (settings.discordWebhookUrl || settings.discordBotToken)
+        ) {
+          await sendDiscord(
+            `[**${shortId}**] ${message}\n\n_Reply: \`!session ${shortId} <message>\`_`
+          );
         }
       }
       break;
@@ -65,7 +85,26 @@ async function handleHookEvent(event: HookEvent): Promise<void> {
         }
 
         if (settings.smsNotificationsEnabled && settings.twilioAccountSid) {
-          await sendSms(`Claude: ${message}`);
+          await sendSms(
+            `[${shortId}] Claude: ${message}\n\nReply directly or use "${shortId}:your message"`
+          );
+        }
+
+        if (settings.telegramNotificationsEnabled && settings.telegramBotToken) {
+          await sendTelegram(
+            `[*${shortId}*] *Claude:* ${message}\n\n` +
+              `_Reply directly or use: /session ${shortId} <message>_`
+          );
+        }
+
+        if (
+          settings.discordNotificationsEnabled &&
+          (settings.discordWebhookUrl || settings.discordBotToken)
+        ) {
+          await sendDiscord(
+            `[**${shortId}**] **Claude:** ${message}\n\n` +
+              `_Reply: \`!claude <message>\` or \`!session ${shortId} <message>\`_`
+          );
         }
       }
       break;
@@ -76,6 +115,21 @@ async function handleHookEvent(event: HookEvent): Promise<void> {
 
         if (settings.desktopNotificationsEnabled) {
           showNotification('Claude Stopped', message);
+        }
+
+        if (settings.smsNotificationsEnabled && settings.twilioAccountSid) {
+          await sendSms(`[${shortId}] ${message}`);
+        }
+
+        if (settings.telegramNotificationsEnabled && settings.telegramBotToken) {
+          await sendTelegram(`[*${shortId}*] ${message}`);
+        }
+
+        if (
+          settings.discordNotificationsEnabled &&
+          (settings.discordWebhookUrl || settings.discordBotToken)
+        ) {
+          await sendDiscord(`[**${shortId}**] ${message}`);
         }
       }
       break;
