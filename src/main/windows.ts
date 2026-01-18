@@ -46,6 +46,7 @@ export function createPopoverWindow(): BrowserWindow {
     resizable: false,
     skipTaskbar: true,
     alwaysOnTop: settings.alwaysOnTop,
+    visibleOnAllWorkspaces: true,
     focusable: true,
     show: false,
     webPreferences: {
