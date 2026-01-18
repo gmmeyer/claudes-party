@@ -52,6 +52,11 @@ const IPC_CHANNELS = {
   INSTALL_HOOKS: 'install-hooks',
   UNINSTALL_HOOKS: 'uninstall-hooks',
   GET_HOOK_STATUS: 'get-hook-status',
+
+  // CLI wrapper management
+  INSTALL_CLI: 'install-cli',
+  UNINSTALL_CLI: 'uninstall-cli',
+  GET_CLI_STATUS: 'get-cli-status',
 } as const;
 
 // Type imports for TypeScript (these are erased at runtime)
@@ -62,6 +67,7 @@ import type {
   TelegramMessage,
   DiscordMessage,
   HookStatus,
+  CliStatus,
   SetupResult,
   TwilioPhoneNumber,
 } from '../shared/types';
@@ -196,6 +202,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
     }>,
   getHookStatus: (): Promise<HookStatus> =>
     ipcRenderer.invoke(IPC_CHANNELS.GET_HOOK_STATUS) as Promise<HookStatus>,
+
+  // CLI wrapper management
+  installCli: (): Promise<{ success: boolean; message: string }> =>
+    ipcRenderer.invoke(IPC_CHANNELS.INSTALL_CLI) as Promise<{
+      success: boolean;
+      message: string;
+    }>,
+  uninstallCli: (): Promise<{ success: boolean; message: string }> =>
+    ipcRenderer.invoke(IPC_CHANNELS.UNINSTALL_CLI) as Promise<{
+      success: boolean;
+      message: string;
+    }>,
+  getCliStatus: (): Promise<CliStatus> =>
+    ipcRenderer.invoke(IPC_CHANNELS.GET_CLI_STATUS) as Promise<CliStatus>,
 });
 
 // Type declaration for renderer
@@ -252,6 +272,10 @@ declare global {
       installHooks: () => Promise<{ success: boolean; message: string }>;
       uninstallHooks: () => Promise<{ success: boolean; message: string }>;
       getHookStatus: () => Promise<HookStatus>;
+
+      installCli: () => Promise<{ success: boolean; message: string }>;
+      uninstallCli: () => Promise<{ success: boolean; message: string }>;
+      getCliStatus: () => Promise<CliStatus>;
     };
   }
 }

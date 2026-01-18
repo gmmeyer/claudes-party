@@ -36,6 +36,13 @@ interface HookStatus {
   hookTypes: string[];
 }
 
+interface CliStatus {
+  installed: boolean;
+  path: string | null;
+  targetPath: string;
+  error?: string;
+}
+
 interface SetupResult {
   success: boolean;
   message: string;
@@ -119,12 +126,21 @@ const installHooksBtnEl = document.getElementById('install-hooks-btn') as HTMLBu
 const uninstallHooksBtnEl = document.getElementById('uninstall-hooks-btn') as HTMLButtonElement;
 const refreshStatusBtnEl = document.getElementById('refresh-status-btn') as HTMLButtonElement;
 
+// DOM Elements - CLI Management
+const cliStatusDotEl = document.getElementById('cli-status-dot') as HTMLSpanElement;
+const cliStatusTextEl = document.getElementById('cli-status-text') as HTMLSpanElement;
+const cliStatusDetailsEl = document.getElementById('cli-status-details') as HTMLDivElement;
+const installCliBtnEl = document.getElementById('install-cli-btn') as HTMLButtonElement;
+const uninstallCliBtnEl = document.getElementById('uninstall-cli-btn') as HTMLButtonElement;
+const cliStatusEl = document.getElementById('cli-status') as HTMLDivElement;
+
 // Load settings
 async function loadSettings() {
   const settings = await window.electronAPI.getSettings();
   applySettingsToForm(settings);
   updateHookConfig(settings.hookServerPort);
   await refreshHookStatus();
+  await refreshCliStatus();
 }
 
 function applySettingsToForm(settings: AppSettings) {
@@ -314,6 +330,88 @@ async function uninstallHooks() {
   } finally {
     uninstallHooksBtnEl.disabled = false;
     uninstallHooksBtnEl.textContent = 'Uninstall Hooks';
+  }
+}
+
+// CLI Status Management
+async function refreshCliStatus() {
+  // Set to checking state
+  cliStatusDotEl.className = 'status-dot checking';
+  cliStatusTextEl.textContent = 'Checking CLI status...';
+  cliStatusDetailsEl.textContent = '';
+
+  try {
+    const status: CliStatus = await window.electronAPI.getCliStatus();
+
+    if (status.installed) {
+      cliStatusDotEl.className = 'status-dot installed';
+      cliStatusTextEl.textContent = 'CLI installed';
+      cliStatusDetailsEl.innerHTML = `
+        <div>Installed at: <code>${status.path}</code></div>
+        <div style="margin-top: 4px; font-size: 11px; color: #666;">Run <code>claude-party</code> in your terminal</div>
+      `;
+      installCliBtnEl.textContent = 'Reinstall CLI';
+    } else {
+      cliStatusDotEl.className = 'status-dot not-installed';
+      cliStatusTextEl.textContent = 'CLI not installed';
+      if (status.error) {
+        cliStatusDetailsEl.innerHTML = `<div style="color: #e74c3c;">${status.error}</div>`;
+      } else {
+        cliStatusDetailsEl.innerHTML = `<div>Click "Install CLI" to add <code>claude-party</code> to your PATH</div>`;
+      }
+      installCliBtnEl.textContent = 'Install CLI';
+    }
+  } catch (error) {
+    cliStatusDotEl.className = 'status-dot not-installed';
+    cliStatusTextEl.textContent = 'Error checking status';
+    cliStatusDetailsEl.textContent = String(error);
+  }
+}
+
+async function installCli() {
+  installCliBtnEl.disabled = true;
+  installCliBtnEl.textContent = 'Installing...';
+
+  try {
+    const result = await window.electronAPI.installCli();
+
+    if (result.success) {
+      showToast('CLI installed successfully!');
+      showStatusMessage(cliStatusEl, result.message);
+      await refreshCliStatus();
+    } else {
+      showToast(result.message, true);
+      showStatusMessage(cliStatusEl, result.message, true);
+    }
+  } catch (error) {
+    showToast('Failed to install CLI: ' + String(error), true);
+  } finally {
+    installCliBtnEl.disabled = false;
+  }
+}
+
+async function uninstallCli() {
+  if (!confirm('Are you sure you want to uninstall the claude-party CLI?')) {
+    return;
+  }
+
+  uninstallCliBtnEl.disabled = true;
+  uninstallCliBtnEl.textContent = 'Uninstalling...';
+
+  try {
+    const result = await window.electronAPI.uninstallCli();
+
+    if (result.success) {
+      showToast('CLI uninstalled successfully');
+      await refreshCliStatus();
+    } else {
+      showToast(result.message, true);
+    }
+  } catch (error) {
+    showToast('Failed to uninstall CLI: ' + String(error), true);
+  } finally {
+    uninstallCliBtnEl.disabled = false;
+    uninstallCliBtnEl.textContent = 'Uninstall CLI';
   }
 }
 
@@ -523,6 +621,10 @@ copyHookConfigEl.addEventListener('click', () => {
 installHooksBtnEl.addEventListener('click', () => void installHooks());
 uninstallHooksBtnEl.addEventListener('click', () => void uninstallHooks());
 refreshStatusBtnEl.addEventListener('click', () => void refreshHookStatus());
+
+// Event Listeners - CLI Management
+installCliBtnEl.addEventListener('click', () => void installCli());
+uninstallCliBtnEl.addEventListener('click', () => void uninstallCli());
 
 // Event Listeners - Twilio
 setupTwilioBtnEl.addEventListener('click', () => void setupTwilio());

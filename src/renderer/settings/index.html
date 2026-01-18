@@ -375,6 +375,46 @@
           </div>
         </details>
       </section>
+
+      <!-- CLI Wrapper Section -->
+      <section class="settings-section">
+        <h2>CLI Wrapper</h2>
+        <p class="section-desc">Install the <code>claude-party</code> command to enable remote input to Claude sessions</p>
+
+        <details class="instructions-box">
+          <summary>What is this?</summary>
+          <div class="instructions-content">
+            <p>The <code>claude-party</code> CLI wraps Claude Code and enables remote input from SMS, Telegram, and Discord.</p>
+            <strong>Usage:</strong>
+            <ol>
+              <li>Install the CLI using the button below</li>
+              <li>Instead of running <code>claude</code>, run <code>claude-party</code></li>
+              <li>All Claude Code arguments work: <code>claude-party --resume abc123</code></li>
+              <li>When you send replies via SMS/Telegram/Discord, they'll be piped directly to Claude's stdin</li>
+            </ol>
+            <div class="reply-format">
+              <strong>Example:</strong><br>
+              <code>claude-party</code> - Start Claude Code with remote input enabled<br>
+              <code>claude-party --port 8080</code> - Use custom port for input server
+            </div>
+          </div>
+        </details>
+
+        <div class="hook-status-box" id="cli-status-box">
+          <div class="hook-status-indicator">
+            <span class="status-dot" id="cli-status-dot"></span>
+            <span id="cli-status-text">Checking CLI status...</span>
+          </div>
+          <div class="hook-status-details" id="cli-status-details"></div>
+        </div>
+
+        <div class="hook-actions">
+          <button id="install-cli-btn" class="btn btn-primary">Install CLI</button>
+          <button id="uninstall-cli-btn" class="btn btn-danger">Uninstall CLI</button>
+        </div>
+
+        <div id="cli-status" class="status-message hidden"></div>
+      </section>
     </main>
 
     <footer class="footer">

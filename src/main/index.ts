@@ -40,6 +40,7 @@ import {
 } from './discord';
 import { sendInputToSession, cleanupOldInputs } from './input-handler';
 import { installHooks, uninstallHooks, getHookStatus } from './claude-config';
+import { installCli, uninstallCli, getCliStatus } from './cli-installer';
 import { IPC_CHANNELS, AppSettings } from '../shared/types';
 
 // Prevent multiple instances
@@ -269,8 +270,11 @@ ipcMain.on(IPC_CHANNELS.SHOW_NOTIFICATION, (_, title: string, body: string) => {
 // Handle voice input result from renderer (Web Speech API)
 ipcMain.on(IPC_CHANNELS.VOICE_INPUT_RESULT, (_, sessionId: string, transcript: string) => {
   if (transcript) {
-    sendInputToSession(sessionId, transcript);
-    showNotification('Voice Input Sent', `"${transcript}" sent to Claude`);
+    void sendInputToSession(sessionId, transcript).then((success) => {
+      if (success) {
+        showNotification('Voice Input Sent', `"${transcript}" sent to Claude`);
+      }
+    });
   }
 });
 
@@ -285,6 +289,19 @@ ipcMain.handle(IPC_CHANNELS.UNINSTALL_HOOKS, () => {
 
 ipcMain.handle(IPC_CHANNELS.GET_HOOK_STATUS, () => {
   return getHookStatus();
+});
+
+// CLI wrapper management
+ipcMain.handle(IPC_CHANNELS.INSTALL_CLI, async () => {
+  return await installCli();
+});
+
+ipcMain.handle(IPC_CHANNELS.UNINSTALL_CLI, async () => {
+  return await uninstallCli();
+});
+
+ipcMain.handle(IPC_CHANNELS.GET_CLI_STATUS, () => {
+  return getCliStatus();
 });
 
 // App lifecycle

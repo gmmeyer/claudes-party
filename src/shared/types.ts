@@ -168,7 +168,20 @@ export const IPC_CHANNELS = {
   INSTALL_HOOKS: 'install-hooks',
   UNINSTALL_HOOKS: 'uninstall-hooks',
   GET_HOOK_STATUS: 'get-hook-status',
+
+  // CLI wrapper management
+  INSTALL_CLI: 'install-cli',
+  UNINSTALL_CLI: 'uninstall-cli',
+  GET_CLI_STATUS: 'get-cli-status',
 } as const;
+
+// CLI status response
+export interface CliStatus {
+  installed: boolean;
+  path: string | null;
+  targetPath: string;
+  error?: string;
+}
 
 // Hook status response
 export interface HookStatus {
