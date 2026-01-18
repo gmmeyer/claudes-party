@@ -87,6 +87,7 @@ export function createSettingsWindow(): BrowserWindow {
     resizable: true,
     minimizable: true,
     maximizable: false,
+    show: false,
     title: "Claude's Party - Settings",
     webPreferences: {
       preload: path.join(__dirname, '..', 'preload', 'index.js'),
@@ -99,6 +100,11 @@ export function createSettingsWindow(): BrowserWindow {
 
   // Remove menu bar on Windows/Linux
   settingsWindow.setMenuBarVisibility(false);
+
+  settingsWindow.once('ready-to-show', () => {
+    settingsWindow?.show();
+    settingsWindow?.focus();
+  });
 
   settingsWindow.on('closed', () => {
     settingsWindow = null;
