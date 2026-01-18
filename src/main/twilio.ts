@@ -11,6 +11,7 @@ import {
 } from '../shared/types';
 import { sendInputToSession } from './input-handler';
 import { getSessions, getSession } from './sessions';
+import { log } from './logger';
 
 let smsServer: Server | null = null;
 let mainWindow: BrowserWindow | null = null;
@@ -24,13 +25,13 @@ export async function sendSms(message: string, toNumber?: string): Promise<boole
   const settings = getSettings();
 
   if (!settings.twilioAccountSid || !settings.twilioAuthToken || !settings.twilioPhoneNumber) {
-    console.log('Twilio not configured');
+    log.debug('Twilio not configured');
     return false;
   }
 
   const to = toNumber || settings.userPhoneNumber;
   if (!to) {
-    console.log('No recipient phone number');
+    log.debug('No recipient phone number');
     return false;
   }
 
@@ -44,7 +45,7 @@ export async function sendSms(message: string, toNumber?: string): Promise<boole
     );
     return true;
   } catch (error) {
-    console.error('Error sending SMS:', error);
+    log.error('Error sending SMS', { error: error instanceof Error ? error.message : String(error) });
     return false;
   }
 }
@@ -82,10 +83,10 @@ function sendTwilioSms(
       res.on('data', (chunk: Buffer) => (data += chunk.toString()));
       res.on('end', () => {
         if (res.statusCode === 201 || res.statusCode === 200) {
-          console.log('SMS sent successfully');
+          log.info('SMS sent successfully');
           resolve();
         } else {
-          console.error('Twilio error response:', data);
+          log.error('Twilio error response', { response: data });
           reject(new Error(`Twilio API error: ${res.statusCode}`));
         }
       });
@@ -398,7 +399,7 @@ export async function setupTwilio(webhookUrl: string): Promise<SetupResult> {
       // Verify the number exists
       phoneNumberSid = await getPhoneNumberSid(phoneNumber);
       if (!phoneNumberSid) {
-        console.log('Configured phone number not found in account, will search for new one');
+        log.info('Configured phone number not found in account, will search for new one');
         phoneNumber = '';
       }
     }
@@ -411,21 +412,21 @@ export async function setupTwilio(webhookUrl: string): Promise<SetupResult> {
         const smsNumber = existingNumbers.find((n) => n.capabilities.sms);
         if (smsNumber) {
           phoneNumber = smsNumber.phoneNumber;
-          console.log(`Using existing number: ${phoneNumber}`);
+          log.info('Using existing number', { phoneNumber });
         }
       }
     }
 
     // If still no number, buy one
     if (!phoneNumber) {
-      console.log('No phone number found, searching for available numbers...');
+      log.info('No phone number found, searching for available numbers');
       const availableNumbers = await searchAvailableNumbers('US');
 
       if (availableNumbers.length === 0) {
         return { success: false, message: 'No phone numbers available for purchase' };
       }
 
-      console.log(`Purchasing number: ${availableNumbers[0].phoneNumber}`);
+      log.info('Purchasing number', { phoneNumber: availableNumbers[0].phoneNumber });
       const purchasedNumber = await buyPhoneNumber(availableNumbers[0].phoneNumber);
       phoneNumber = purchasedNumber.phoneNumber;
     }
@@ -438,7 +439,7 @@ export async function setupTwilio(webhookUrl: string): Promise<SetupResult> {
 
     // Configure webhook
     if (webhookUrl) {
-      console.log(`Configuring webhook: ${webhookUrl}`);
+      log.info('Configuring webhook', { webhookUrl });
       await configureWebhook(phoneNumberSid, webhookUrl);
     }
 
@@ -454,7 +455,7 @@ export async function setupTwilio(webhookUrl: string): Promise<SetupResult> {
       data: { phoneNumber, webhookUrl },
     };
   } catch (error) {
-    console.error('Twilio setup error:', error);
+    log.error('Twilio setup error', { error: error instanceof Error ? error.message : String(error) });
     return {
       success: false,
       message: `Setup failed: ${error instanceof Error ? error.message : String(error)}`,
@@ -487,7 +488,7 @@ export function startSmsWebhookServer(port: number = 31549): void {
           direction: 'inbound',
         };
 
-        console.log('Received SMS:', smsMessage);
+        log.info('Received SMS', { from: smsMessage.from, body: smsMessage.body.substring(0, 50) });
 
         // Notify renderer about received SMS
         if (mainWindow && !mainWindow.isDestroyed()) {
@@ -504,7 +505,7 @@ export function startSmsWebhookServer(port: number = 31549): void {
         res.writeHead(200, { 'Content-Type': 'text/xml' });
         res.end('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
       } catch (error) {
-        console.error('Error processing incoming SMS:', error);
+        log.error('Error processing incoming SMS', { error: error instanceof Error ? error.message : String(error) });
         res.writeHead(500);
         res.end();
       }
@@ -512,7 +513,7 @@ export function startSmsWebhookServer(port: number = 31549): void {
   });
 
   smsServer.listen(port, '127.0.0.1', () => {
-    console.log(`SMS webhook server listening on http://127.0.0.1:${port}`);
+    log.info('SMS webhook server started', { port, url: `http://127.0.0.1:${port}` });
   });
 }
 
@@ -548,7 +549,7 @@ async function handleIncomingSmsAsInput(message: SmsMessage): Promise<void> {
   const parsed = processIncomingSms(message);
 
   if (!parsed.input) {
-    console.log('No input found in SMS');
+    log.debug('No input found in SMS');
     return;
   }
 
@@ -572,7 +573,7 @@ async function handleIncomingSmsAsInput(message: SmsMessage): Promise<void> {
   }
 
   if (!targetSessionId) {
-    console.log('No active session found for SMS input');
+    log.info('No active session found for SMS input');
     // Send response via SMS
     await sendSms('No active Claude session found to send your message to.');
     return;
@@ -581,7 +582,7 @@ async function handleIncomingSmsAsInput(message: SmsMessage): Promise<void> {
   // Verify session exists
   const session = getSession(targetSessionId);
   if (!session) {
-    console.log(`Session ${targetSessionId} not found`);
+    log.warn('Session not found', { sessionId: targetSessionId });
     await sendSms(`Session "${targetSessionId}" not found.`);
     return;
   }
@@ -590,13 +591,13 @@ async function handleIncomingSmsAsInput(message: SmsMessage): Promise<void> {
   const success = await sendInputToSession(targetSessionId, parsed.input);
 
   if (success) {
-    console.log(`SMS input sent to session ${targetSessionId}: ${parsed.input}`);
+    log.info('SMS input sent to session', { sessionId: targetSessionId, input: parsed.input?.substring(0, 50) });
     // Optionally confirm via SMS
     const truncatedInput =
       parsed.input.length > 50 ? parsed.input.substring(0, 50) + '...' : parsed.input;
     await sendSms(`Sent to Claude: "${truncatedInput}"`);
   } else {
-    console.error(`Failed to send SMS input to session ${targetSessionId}`);
+    log.error('Failed to send SMS input to session', { sessionId: targetSessionId });
     await sendSms('Failed to send your message to Claude.');
   }
 }

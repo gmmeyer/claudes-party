@@ -20,15 +20,25 @@ const inputText = document.getElementById('input-text') as HTMLTextAreaElement;
 const inputCancel = document.getElementById('input-cancel') as HTMLButtonElement;
 const inputSend = document.getElementById('input-send') as HTMLButtonElement;
 const voiceControls = document.getElementById('voice-controls') as HTMLDivElement;
-// Server status elements are defined in HTML but not currently used in JS
-// const serverStatusDot = document.getElementById('server-status-dot') as HTMLSpanElement;
-// const serverStatusText = document.getElementById('server-status-text') as HTMLSpanElement;
+const serverStatusDot = document.getElementById('server-status-dot') as HTMLSpanElement;
+const serverStatusText = document.getElementById('server-status-text') as HTMLSpanElement;
 
 let currentInputSessionId: string | null = null;
 let isRecording = false;
 let recordingSessionId: string | null = null;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let recognition: any = null;
+
+// Update server status display
+function updateServerStatus(port: number, isConnected: boolean = true) {
+  if (isConnected) {
+    serverStatusDot.className = 'status-dot connected';
+    serverStatusText.textContent = `Hook server on port ${port}`;
+  } else {
+    serverStatusDot.className = 'status-dot disconnected';
+    serverStatusText.textContent = 'Hook server offline';
+  }
+}
 
 // Initialize
 async function init() {
@@ -41,12 +51,22 @@ async function init() {
     renderSessions(sessions);
   });
 
-  // Check if voice input is available
+  // Get settings and update UI
   const settings = await window.electronAPI.getSettings();
+
+  // Update server status display
+  updateServerStatus(settings.hookServerPort);
+
+  // Check if voice input is available
   if (settings.voiceInputEnabled && 'webkitSpeechRecognition' in window) {
     voiceControls.style.display = 'flex';
     setupSpeechRecognition();
   }
+
+  // Listen for settings updates to refresh server status
+  window.electronAPI.onSettingsUpdated((newSettings) => {
+    updateServerStatus(newSettings.hookServerPort);
+  });
 
   // Listen for recording commands from main process
   window.electronAPI.onStartRecording((sessionId) => {
@@ -56,6 +76,38 @@ async function init() {
   window.electronAPI.onStopRecording(() => {
     stopRecording();
   });
+
+  // Listen for incoming messages from external services
+  // These handlers allow the UI to respond to messages received via SMS, Telegram, and Discord
+  window.electronAPI.onSmsReceived((message) => {
+    console.log('SMS received:', message.from, message.body.substring(0, 50));
+    // The main process already handles sending input to Claude sessions
+    // Show a brief notification in the renderer
+    showMessageIndicator('SMS', message.from);
+  });
+
+  window.electronAPI.onTelegramReceived((message) => {
+    console.log('Telegram received:', message.username, message.text.substring(0, 50));
+    showMessageIndicator('Telegram', message.username || 'Unknown');
+  });
+
+  window.electronAPI.onDiscordReceived((message) => {
+    console.log('Discord received:', message.username, message.content.substring(0, 50));
+    showMessageIndicator('Discord', message.username || 'Unknown');
+  });
+}
+
+// Show a brief indicator when external messages are received
+function showMessageIndicator(source: string, from: string) {
+  // Update server status text briefly to show message received
+  const originalText = serverStatusText.textContent;
+  serverStatusText.textContent = `${source} from ${from}`;
+  serverStatusDot.classList.add('message-received');
+
+  setTimeout(() => {
+    serverStatusText.textContent = originalText;
+    serverStatusDot.classList.remove('message-received');
+  }, 3000);
 }
 
 function renderSessions(sessions: ClaudeSession[]) {

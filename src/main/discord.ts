@@ -4,6 +4,7 @@ import { BrowserWindow } from 'electron';
 import { IPC_CHANNELS, DiscordMessage, SetupResult } from '../shared/types';
 import { sendInputToSession } from './input-handler';
 import { getSessions, getSession } from './sessions';
+import { log } from './logger';
 
 let mainWindow: BrowserWindow | null = null;
 let gatewayConnection: WebSocketLike | null = null;
@@ -24,7 +25,7 @@ export async function sendDiscordWebhook(message: string): Promise<boolean> {
   const settings = getSettings();
 
   if (!settings.discordWebhookUrl) {
-    console.log('Discord webhook URL not configured');
+    log.debug('Discord webhook URL not configured');
     return false;
   }
 
@@ -32,7 +33,7 @@ export async function sendDiscordWebhook(message: string): Promise<boolean> {
     await sendWebhookMessage(settings.discordWebhookUrl, message);
     return true;
   } catch (error) {
-    console.error('Error sending Discord webhook:', error);
+    log.error('Error sending Discord webhook', { error: error instanceof Error ? error.message : String(error) });
     return false;
   }
 }
@@ -58,10 +59,10 @@ function sendWebhookMessage(webhookUrl: string, content: string): Promise<void> 
       res.on('data', (chunk: Buffer) => (data += chunk.toString()));
       res.on('end', () => {
         if (res.statusCode === 200 || res.statusCode === 204) {
-          console.log('Discord webhook sent successfully');
+          log.info('Discord webhook sent successfully');
           resolve();
         } else {
-          console.error('Discord webhook error:', data);
+          log.error('Discord webhook error', { response: data });
           reject(new Error(`Discord API error: ${res.statusCode}`));
         }
       });
@@ -84,7 +85,7 @@ export async function sendDiscordBot(message: string, channelId?: string): Promi
 
   const targetChannelId = channelId || settings.discordChannelId;
   if (!targetChannelId) {
-    console.log('No Discord channel ID configured');
+    log.debug('No Discord channel ID configured');
     return false;
   }
 
@@ -92,7 +93,7 @@ export async function sendDiscordBot(message: string, channelId?: string): Promi
     await sendBotMessage(settings.discordBotToken, targetChannelId, message);
     return true;
   } catch (error) {
-    console.error('Error sending Discord bot message:', error);
+    log.error('Error sending Discord bot message', { error: error instanceof Error ? error.message : String(error) });
     return false;
   }
 }
@@ -118,10 +119,10 @@ function sendBotMessage(botToken: string, channelId: string, content: string): P
       res.on('data', (chunk: Buffer) => (data += chunk.toString()));
       res.on('end', () => {
         if (res.statusCode === 200 || res.statusCode === 201) {
-          console.log('Discord bot message sent successfully');
+          log.info('Discord bot message sent successfully');
           resolve();
         } else {
-          console.error('Discord bot error:', data);
+          log.error('Discord bot error', { response: data });
           reject(new Error(`Discord API error: ${res.statusCode}`));
         }
       });
@@ -189,7 +190,7 @@ export function startDiscordBot(): void {
     return;
   }
 
-  console.log('Discord bot configured (webhook mode for notifications)');
+  log.info('Discord bot configured (webhook mode for notifications)');
 
   // For receiving messages, we'll use HTTP polling of recent messages
   // This is simpler than maintaining a WebSocket connection
@@ -211,7 +212,7 @@ function startDiscordPolling(): void {
     clearInterval(discordPollingInterval);
   }
 
-  console.log('Starting Discord message polling...');
+  log.info('Starting Discord message polling');
 
   const poll = async () => {
     try {
@@ -242,7 +243,7 @@ function startDiscordPolling(): void {
           username: msg.author.username,
         };
 
-        console.log('Received Discord message:', discordMessage);
+        log.info('Received Discord message', { channelId: discordMessage.channelId, username: discordMessage.username, content: discordMessage.content.substring(0, 50) });
 
         // Notify renderer
         if (mainWindow && !mainWindow.isDestroyed()) {
@@ -253,7 +254,7 @@ function startDiscordPolling(): void {
         await handleIncomingDiscordMessage(discordMessage);
       }
     } catch (error) {
-      console.error('Discord polling error:', error);
+      log.error('Discord polling error', { error: error instanceof Error ? error.message : String(error) });
     }
   };
 
@@ -268,7 +269,7 @@ function startDiscordPolling(): void {
         lastMessageId = messages[0].id;
       }
     } catch (e) {
-      console.error('Failed to initialize Discord polling:', e);
+      log.error('Failed to initialize Discord polling', { error: e instanceof Error ? e.message : String(e) });
     }
   })();
 
@@ -346,7 +347,7 @@ export function stopDiscordBot(): void {
     gatewayConnection = null;
   }
 
-  console.log('Discord bot stopped');
+  log.info('Discord bot stopped');
 }
 
 // Find session by full or partial ID
@@ -499,7 +500,7 @@ async function handleIncomingDiscordMessage(message: DiscordMessage): Promise<vo
   const shortId = targetSessionId.substring(0, 8);
 
   if (success) {
-    console.log(`Discord input sent to session ${targetSessionId}: ${input}`);
+    log.info('Discord input sent to session', { sessionId: targetSessionId, input: input.substring(0, 50) });
     const truncatedInput = input.length > 50 ? input.substring(0, 50) + '...' : input;
     await sendDiscord(`:white_check_mark: Sent to **${shortId}**: "${truncatedInput}"`);
   } else {
