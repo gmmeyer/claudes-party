@@ -587,7 +587,7 @@ async function handleIncomingSmsAsInput(message: SmsMessage): Promise<void> {
   }
 
   // Send input to session
-  const success = sendInputToSession(targetSessionId, parsed.input);
+  const success = await sendInputToSession(targetSessionId, parsed.input);
 
   if (success) {
     console.log(`SMS input sent to session ${targetSessionId}: ${parsed.input}`);

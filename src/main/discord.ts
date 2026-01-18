@@ -495,7 +495,7 @@ async function handleIncomingDiscordMessage(message: DiscordMessage): Promise<vo
   }
 
   // Send input to session
-  const success = sendInputToSession(targetSessionId, input);
+  const success = await sendInputToSession(targetSessionId, input);
   const shortId = targetSessionId.substring(0, 8);
 
   if (success) {

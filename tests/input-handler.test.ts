@@ -28,18 +28,18 @@ describe('Input Handler Module', () => {
   });
 
   describe('sendInputToSession', () => {
-    it('should create directory if it does not exist', () => {
+    it('should create directory if it does not exist', async () => {
       mockFs.existsSync.mockReturnValue(false);
 
-      sendInputToSession(testSessionId, 'Hello Claude');
+      await sendInputToSession(testSessionId, 'Hello Claude');
 
       expect(mockFs.mkdirSync).toHaveBeenCalledWith(inputDir, { recursive: true });
     });
 
-    it('should write input to correct file', () => {
+    it('should write input to correct file', async () => {
       mockFs.existsSync.mockReturnValue(true);
 
-      sendInputToSession(testSessionId, 'Test input message');
+      await sendInputToSession(testSessionId, 'Test input message');
 
       expect(mockFs.writeFileSync).toHaveBeenCalledWith(
         path.join(inputDir, `${testSessionId}.input`),
@@ -47,39 +47,39 @@ describe('Input Handler Module', () => {
       );
     });
 
-    it('should return true on success', () => {
+    it('should return true on success', async () => {
       mockFs.existsSync.mockReturnValue(true);
 
-      const result = sendInputToSession(testSessionId, 'Test');
+      const result = await sendInputToSession(testSessionId, 'Test');
 
       expect(result).toBe(true);
     });
 
-    it('should return false on error', () => {
+    it('should return false on error', async () => {
       mockFs.existsSync.mockReturnValue(true);
       mockFs.writeFileSync.mockImplementation(() => {
         throw new Error('Write error');
       });
 
-      const result = sendInputToSession(testSessionId, 'Test');
+      const result = await sendInputToSession(testSessionId, 'Test');
 
       expect(result).toBe(false);
     });
 
-    it('should handle empty input', () => {
+    it('should handle empty input', async () => {
       mockFs.existsSync.mockReturnValue(true);
 
-      const result = sendInputToSession(testSessionId, '');
+      const result = await sendInputToSession(testSessionId, '');
 
       expect(result).toBe(true);
       expect(mockFs.writeFileSync).toHaveBeenCalledWith(expect.any(String), '');
     });
 
-    it('should handle special characters in input', () => {
+    it('should handle special characters in input', async () => {
       mockFs.existsSync.mockReturnValue(true);
 
       const specialInput = 'Test with\nnewlines\tand\ttabs & "quotes"';
-      sendInputToSession(testSessionId, specialInput);
+      await sendInputToSession(testSessionId, specialInput);
 
       expect(mockFs.writeFileSync).toHaveBeenCalledWith(expect.any(String), specialInput);
     });
