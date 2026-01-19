@@ -46,7 +46,6 @@ export function createPopoverWindow(): BrowserWindow {
     resizable: false,
     skipTaskbar: true,
     alwaysOnTop: settings.alwaysOnTop,
-    visibleOnAllWorkspaces: true,
     focusable: true,
     show: false,
     webPreferences: {
@@ -55,6 +54,11 @@ export function createPopoverWindow(): BrowserWindow {
       nodeIntegration: false,
     },
   });
+
+  // Make visible on all workspaces (macOS)
+  if (process.platform === 'darwin') {
+    popoverWindow.setVisibleOnAllWorkspaces(true);
+  }
 
   popoverWindow.setOpacity(settings.popoverOpacity);
 

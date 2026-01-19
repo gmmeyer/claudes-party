@@ -16,7 +16,8 @@ const getLogPath = (): string => {
 const consoleFormat = winston.format.combine(
   winston.format.timestamp({ format: 'HH:mm:ss' }),
   winston.format.colorize(),
-  winston.format.printf(({ level, message, timestamp, ...meta }) => {
+  winston.format.printf((info) => {
+    const { level, message, timestamp, ...meta } = info;
     const metaStr = Object.keys(meta).length ? ` ${JSON.stringify(meta)}` : '';
     return `[${timestamp}] ${level}: ${message}${metaStr}`;
   })
@@ -26,9 +27,10 @@ const consoleFormat = winston.format.combine(
 const fileFormat = winston.format.combine(
   winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
   winston.format.errors({ stack: true }),
-  winston.format.printf(({ level, message, timestamp, ...meta }) => {
+  winston.format.printf((info) => {
+    const { level, message, timestamp, ...meta } = info;
     const metaStr = Object.keys(meta).length ? ` ${JSON.stringify(meta)}` : '';
-    return `[${timestamp}] ${level.toUpperCase()}: ${message}${metaStr}`;
+    return `[${timestamp}] ${String(level).toUpperCase()}: ${message}${metaStr}`;
   })
 );
 

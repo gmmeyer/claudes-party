@@ -1,9 +1,68 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
-// Import IPC_CHANNELS from shared types (single source of truth)
-import { IPC_CHANNELS } from '../shared/types';
+// IPC channel names - MUST be inlined here because preload scripts can't import from other modules
+// Keep in sync with src/shared/types.ts
+const IPC_CHANNELS = {
+  // Settings
+  GET_SETTINGS: 'get-settings',
+  SAVE_SETTINGS: 'save-settings',
+  SETTINGS_UPDATED: 'settings-updated',
 
-// Type imports for TypeScript (these are erased at runtime)
+  // Sessions
+  GET_SESSIONS: 'get-sessions',
+  SESSIONS_UPDATED: 'sessions-updated',
+
+  // Voice
+  START_VOICE_INPUT: 'start-voice-input',
+  STOP_VOICE_INPUT: 'stop-voice-input',
+  VOICE_INPUT_RESULT: 'voice-input-result',
+  SPEAK_TEXT: 'speak-text',
+
+  // SMS / Twilio
+  SEND_SMS: 'send-sms',
+  SMS_RECEIVED: 'sms-received',
+  SETUP_TWILIO: 'setup-twilio',
+  GET_TWILIO_NUMBERS: 'get-twilio-numbers',
+  BUY_TWILIO_NUMBER: 'buy-twilio-number',
+
+  // Telegram
+  SEND_TELEGRAM: 'send-telegram',
+  TELEGRAM_RECEIVED: 'telegram-received',
+  SETUP_TELEGRAM: 'setup-telegram',
+  TEST_TELEGRAM: 'test-telegram',
+
+  // Discord
+  SEND_DISCORD: 'send-discord',
+  DISCORD_RECEIVED: 'discord-received',
+  SETUP_DISCORD: 'setup-discord',
+  TEST_DISCORD: 'test-discord',
+
+  // Window controls
+  OPEN_SETTINGS: 'open-settings',
+  CLOSE_WINDOW: 'close-window',
+  TOGGLE_POPOVER: 'toggle-popover',
+
+  // Input response
+  SEND_INPUT_TO_SESSION: 'send-input-to-session',
+
+  // Notifications
+  SHOW_NOTIFICATION: 'show-notification',
+
+  // External URLs
+  OPEN_EXTERNAL_URL: 'open-external-url',
+
+  // Claude Code hook management
+  INSTALL_HOOKS: 'install-hooks',
+  UNINSTALL_HOOKS: 'uninstall-hooks',
+  GET_HOOK_STATUS: 'get-hook-status',
+
+  // CLI wrapper management
+  INSTALL_CLI: 'install-cli',
+  UNINSTALL_CLI: 'uninstall-cli',
+  GET_CLI_STATUS: 'get-cli-status',
+} as const;
+
+// Type imports for TypeScript (these are erased at runtime, so this import is safe)
 import type {
   AppSettings,
   ClaudeSession,

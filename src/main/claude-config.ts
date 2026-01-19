@@ -39,7 +39,7 @@ export function readClaudeSettings(): Record<string, unknown> | null {
       return JSON.parse(content) as Record<string, unknown>;
     }
   } catch (error) {
-    log.error('Error reading Claude settings:', error);
+    log.error('Error reading Claude settings:', { error });
   }
 
   return null;
@@ -60,7 +60,7 @@ export function writeClaudeSettings(settings: Record<string, unknown>): boolean 
     fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2), 'utf-8');
     return true;
   } catch (error) {
-    log.error('Error writing Claude settings:', error);
+    log.error('Error writing Claude settings:', { error });
     return false;
   }
 }
@@ -186,14 +186,17 @@ export function areHooksInstalled(): boolean {
     return false;
   }
 
-  const hooks = claudeSettings.hooks as Record<string, string[]>;
+  const hooks = claudeSettings.hooks as Record<string, unknown>;
   const settings = getSettings();
   const port = settings.hookServerPort;
 
   // Check if at least one of our hooks is present
-  return Object.values(hooks).some((commands) =>
-    commands.some((cmd) => cmd.includes(`127.0.0.1:${port}`))
-  );
+  return Object.values(hooks).some((commands) => {
+    if (!Array.isArray(commands)) return false;
+    return commands.some((cmd) =>
+      typeof cmd === 'string' && cmd.includes(`127.0.0.1:${port}`)
+    );
+  });
 }
 
 // Get the current hook status
@@ -210,12 +213,15 @@ export function getHookStatus(): {
 
   const hookTypes: string[] = [];
   if (claudeSettings?.hooks) {
-    const hooks = claudeSettings.hooks as Record<string, string[]>;
+    const hooks = claudeSettings.hooks as Record<string, unknown>;
     const settings = getSettings();
     const port = settings.hookServerPort;
 
     for (const [hookType, commands] of Object.entries(hooks)) {
-      if (commands.some((cmd) => cmd.includes(`127.0.0.1:${port}`))) {
+      if (!Array.isArray(commands)) continue;
+      if (commands.some((cmd) =>
+        typeof cmd === 'string' && cmd.includes(`127.0.0.1:${port}`)
+      )) {
         hookTypes.push(hookType);
       }
     }

@@ -138,7 +138,7 @@ export async function sendInputToSession(sessionId: string, input: string): Prom
     log.info(`Input written for session ${sessionId}: ${input}`);
     return true;
   } catch (error) {
-    log.error('Error sending input to session:', error);
+    log.error('Error sending input to session:', { error });
     return false;
   }
 }
@@ -158,7 +158,7 @@ export function sendInputToSessionSync(sessionId: string, input: string): boolea
     log.info(`Input written for session ${sessionId}: ${input}`);
     return true;
   } catch (error) {
-    log.error('Error sending input to session:', error);
+    log.error('Error sending input to session:', { error });
     return false;
   }
 }
@@ -175,7 +175,7 @@ export function readPendingInput(sessionId: string): string | null {
       return input;
     }
   } catch (error) {
-    log.error('Error reading pending input:', error);
+    log.error('Error reading pending input:', { error });
   }
 
   return null;
@@ -207,6 +207,6 @@ export function cleanupOldInputs(): void {
       }
     }
   } catch (error) {
-    log.error('Error cleaning up old inputs:', error);
+    log.error('Error cleaning up old inputs:', { error });
   }
 }
