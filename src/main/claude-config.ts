@@ -10,23 +10,42 @@ export function getClaudeSettingsPath(): string {
   return path.join(home, '.claude', 'settings.json');
 }
 
-// Generate hook commands for the current port
-export function generateHookCommands(): Record<string, string[]> {
+// Hook entry in new Claude Code format
+interface HookCommand {
+  type: string;
+  command: string;
+  timeout?: number;
+}
+
+interface HookEntry {
+  matcher?: Record<string, unknown>;
+  hooks: HookCommand[];
+}
+
+// Generate our hook entry for a given hook type
+function generateOurHookEntry(hookType: string): HookEntry {
   const settings = getSettings();
   const port = settings.hookServerPort;
 
   // Use curl with silent mode and error suppression so it doesn't break Claude Code
-  const curlCmd = (hookType: string) =>
-    `curl -s -X POST http://127.0.0.1:${port}/${hookType} -H 'Content-Type: application/json' -d @- 2>/dev/null || true`;
+  const command = `curl -s -X POST http://127.0.0.1:${port}/${hookType} -H 'Content-Type: application/json' -d @- 2>/dev/null || true`;
 
   return {
-    PreToolUse: [curlCmd('PreToolUse')],
-    PostToolUse: [curlCmd('PostToolUse')],
-    Notification: [curlCmd('Notification')],
-    Stop: [curlCmd('Stop')],
-    SessionStart: [curlCmd('SessionStart')],
-    SessionEnd: [curlCmd('SessionEnd')],
+    hooks: [{ type: 'command', command, timeout: 5 }],
   };
+}
+
+// Check if a hook entry is ours (contains our curl command)
+function isOurHookEntry(entry: unknown, port: number): boolean {
+  if (!entry || typeof entry !== 'object') return false;
+  const e = entry as Record<string, unknown>;
+  if (!Array.isArray(e.hooks)) return false;
+
+  return e.hooks.some((hook: unknown) => {
+    if (!hook || typeof hook !== 'object') return false;
+    const h = hook as Record<string, unknown>;
+    return typeof h.command === 'string' && h.command.includes(`127.0.0.1:${port}`);
+  });
 }
 
 // Read existing Claude Code settings
@@ -65,40 +84,37 @@ export function writeClaudeSettings(settings: Record<string, unknown>): boolean 
   }
 }
 
+// Hook types we install
+const HOOK_TYPES = ['PreToolUse', 'PostToolUse', 'Notification', 'Stop', 'SessionStart', 'SessionEnd'];
+
 // Install hooks into Claude Code settings
 export function installHooks(): { success: boolean; message: string } {
   try {
     // Read existing settings or create empty object
     const claudeSettings = readClaudeSettings() || {};
+    const settings = getSettings();
+    const port = settings.hookServerPort;
 
-    // Generate new hook commands
-    const hookCommands = generateHookCommands();
+    // Get existing hooks or create empty object
+    const existingHooks = (claudeSettings.hooks as Record<string, unknown[]>) || {};
+    const newHooks: Record<string, unknown[]> = {};
 
-    // Merge with existing hooks (our hooks will be added, not replace all)
-    const existingHooks = (claudeSettings.hooks as Record<string, string[]>) || {};
+    // For each hook type, preserve existing entries and add/update ours
+    for (const hookType of HOOK_TYPES) {
+      const existingEntries = Array.isArray(existingHooks[hookType]) ? existingHooks[hookType] : [];
 
-    // For each hook type, add our command if not already present
-    const newHooks: Record<string, string[]> = { ...existingHooks };
+      // Filter out any existing entries that are ours (we'll add fresh one)
+      const otherEntries = existingEntries.filter((entry) => !isOurHookEntry(entry, port));
 
-    for (const [hookType, commands] of Object.entries(hookCommands)) {
-      const existingCommands = existingHooks[hookType] || [];
-      const ourCommand = commands[0];
+      // Add our hook entry
+      const ourEntry = generateOurHookEntry(hookType);
+      newHooks[hookType] = [...otherEntries, ourEntry];
+    }
 
-      // Check if our command (or similar) is already in the list
-      const alreadyInstalled = existingCommands.some(
-        (cmd) =>
-          (cmd.includes('127.0.0.1:') && cmd.includes('/claudes-party')) ||
-          (cmd.includes(`/${hookType}`) && cmd.includes('127.0.0.1:'))
-      );
-
-      if (alreadyInstalled) {
-        // Replace existing Claude's Party hook with updated one
-        newHooks[hookType] = existingCommands.map((cmd) =>
-          cmd.includes('127.0.0.1:') && cmd.includes(`/${hookType}`) ? ourCommand : cmd
-        );
-      } else {
-        // Add our command to the list
-        newHooks[hookType] = [...existingCommands, ourCommand];
+    // Preserve any other hook types that aren't in our list
+    for (const [hookType, entries] of Object.entries(existingHooks)) {
+      if (!HOOK_TYPES.includes(hookType)) {
+        newHooks[hookType] = entries;
       }
     }
 
@@ -137,17 +153,19 @@ export function uninstallHooks(): { success: boolean; message: string } {
       };
     }
 
-    const existingHooks = (claudeSettings.hooks as Record<string, string[]>) || {};
-    const newHooks: Record<string, string[]> = {};
+    const settings = getSettings();
+    const port = settings.hookServerPort;
+    const existingHooks = (claudeSettings.hooks as Record<string, unknown[]>) || {};
+    const newHooks: Record<string, unknown[]> = {};
 
-    // Remove our hooks from each hook type
-    for (const [hookType, commands] of Object.entries(existingHooks)) {
-      const filteredCommands = commands.filter(
-        (cmd) => !(cmd.includes('127.0.0.1:') && cmd.includes(`/${hookType}`))
-      );
+    // Remove our hooks from each hook type, keeping others
+    for (const [hookType, entries] of Object.entries(existingHooks)) {
+      if (!Array.isArray(entries)) continue;
 
-      if (filteredCommands.length > 0) {
-        newHooks[hookType] = filteredCommands;
+      const filteredEntries = entries.filter((entry) => !isOurHookEntry(entry, port));
+
+      if (filteredEntries.length > 0) {
+        newHooks[hookType] = filteredEntries;
       }
     }
 
@@ -186,16 +204,14 @@ export function areHooksInstalled(): boolean {
     return false;
   }
 
-  const hooks = claudeSettings.hooks as Record<string, unknown>;
+  const hooks = claudeSettings.hooks as Record<string, unknown[]>;
   const settings = getSettings();
   const port = settings.hookServerPort;
 
   // Check if at least one of our hooks is present
-  return Object.values(hooks).some((commands) => {
-    if (!Array.isArray(commands)) return false;
-    return commands.some((cmd) =>
-      typeof cmd === 'string' && cmd.includes(`127.0.0.1:${port}`)
-    );
+  return Object.values(hooks).some((entries) => {
+    if (!Array.isArray(entries)) return false;
+    return entries.some((entry) => isOurHookEntry(entry, port));
   });
 }
 
@@ -213,15 +229,13 @@ export function getHookStatus(): {
 
   const hookTypes: string[] = [];
   if (claudeSettings?.hooks) {
-    const hooks = claudeSettings.hooks as Record<string, unknown>;
+    const hooks = claudeSettings.hooks as Record<string, unknown[]>;
     const settings = getSettings();
     const port = settings.hookServerPort;
 
-    for (const [hookType, commands] of Object.entries(hooks)) {
-      if (!Array.isArray(commands)) continue;
-      if (commands.some((cmd) =>
-        typeof cmd === 'string' && cmd.includes(`127.0.0.1:${port}`)
-      )) {
+    for (const [hookType, entries] of Object.entries(hooks)) {
+      if (!Array.isArray(entries)) continue;
+      if (entries.some((entry) => isOurHookEntry(entry, port))) {
         hookTypes.push(hookType);
       }
     }

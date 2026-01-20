@@ -15,6 +15,17 @@ export interface ClaudeSession {
   lastActivity: number;
   currentTool?: string;
   lastNotification?: string;
+  slug?: string; // Human-readable session name from Claude (e.g., "lexical-riding-yeti")
+  // Fields for AskUserQuestion prompts
+  question?: string; // The question being asked
+  options?: InputOption[]; // Available options to select from
+}
+
+// Option for AskUserQuestion prompts
+export interface InputOption {
+  label: string;
+  value: string;
+  description?: string;
 }
 
 export interface HookEvent {
@@ -159,6 +170,9 @@ export const IPC_CHANNELS = {
 
   // Input response
   SEND_INPUT_TO_SESSION: 'send-input-to-session',
+
+  // Session management
+  CLEAR_SESSION: 'clear-session',
 
   // Notifications
   SHOW_NOTIFICATION: 'show-notification',

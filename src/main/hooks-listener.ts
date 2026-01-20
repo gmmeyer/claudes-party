@@ -17,7 +17,7 @@ export function setPopoverWindow(window: BrowserWindow | null): void {
   popoverWindow = window;
 }
 
-function notifyRenderer(): void {
+export function notifyRenderer(): void {
   if (popoverWindow && !popoverWindow.isDestroyed()) {
     popoverWindow.webContents.send(IPC_CHANNELS.SESSIONS_UPDATED, getSessions());
   }
@@ -74,8 +74,15 @@ async function handleHookEvent(event: HookEvent): Promise<void> {
       break;
 
     case 'Notification':
-      if (settings.notifyOnWaitingForInput && event.data.message) {
-        const message = event.data.message;
+      // Extract message from various possible fields
+      const eventData = event.data as Record<string, unknown>;
+      const notificationMessage = (eventData.message || eventData.title || eventData.body || eventData.text || 'Claude needs input') as string;
+      const questionText = (eventData.question || eventData.prompt || notificationMessage) as string;
+      log.debug('Notification received', { sessionId: shortId, message: notificationMessage, question: questionText, dataKeys: Object.keys(event.data), data: event.data });
+
+      // Always notify when Claude needs input
+      if (settings.notifyOnWaitingForInput) {
+        const message = questionText || notificationMessage;
 
         if (settings.desktopNotificationsEnabled) {
           showNotification('Claude Notification', message);
@@ -200,13 +207,27 @@ export function startHookServer(): void {
           return;
         }
 
-        // Create hook event
+        // Create hook event - extract session ID and working directory from various possible fields
         const sessionId = (data.session_id as string) || (data.sessionId as string) || 'unknown';
+
+        // Try to extract working directory from various possible locations in the data
+        const workingDirectory =
+          (data.working_directory as string) ||
+          (data.workingDirectory as string) ||
+          (data.cwd as string) ||
+          (data.pwd as string) ||
+          ((data.session as Record<string, unknown>)?.working_directory as string) ||
+          ((data.session as Record<string, unknown>)?.cwd as string) ||
+          undefined;
+
+        // Log incoming hook data for debugging
+        log.debug('Hook received', { hookType, sessionId: sessionId.substring(0, 8), hasWorkingDir: !!workingDirectory, dataKeys: Object.keys(data) });
+
         const event: HookEvent = {
           type: hookType,
           sessionId,
           timestamp: Date.now(),
-          data: data as HookEvent['data'],
+          data: { ...data, working_directory: workingDirectory } as HookEvent['data'],
         };
 
         // Process the event

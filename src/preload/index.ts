@@ -45,6 +45,9 @@ const IPC_CHANNELS = {
   // Input response
   SEND_INPUT_TO_SESSION: 'send-input-to-session',
 
+  // Session management
+  CLEAR_SESSION: 'clear-session',
+
   // Notifications
   SHOW_NOTIFICATION: 'show-notification',
 
@@ -178,6 +181,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   sendInputToSession: (sessionId: string, input: string): Promise<boolean> =>
     ipcRenderer.invoke(IPC_CHANNELS.SEND_INPUT_TO_SESSION, sessionId, input) as Promise<boolean>,
 
+  // Session management
+  clearSession: (sessionId: string): Promise<boolean> =>
+    ipcRenderer.invoke(IPC_CHANNELS.CLEAR_SESSION, sessionId) as Promise<boolean>,
+
   // Window controls
   openSettings: () => ipcRenderer.send(IPC_CHANNELS.OPEN_SETTINGS),
   closeWindow: () => ipcRenderer.send(IPC_CHANNELS.CLOSE_WINDOW),
@@ -262,6 +269,7 @@ declare global {
       testDiscord: () => Promise<SetupResult>;
 
       sendInputToSession: (sessionId: string, input: string) => Promise<boolean>;
+      clearSession: (sessionId: string) => Promise<boolean>;
 
       openSettings: () => void;
       closeWindow: () => void;

@@ -7,9 +7,9 @@ import {
   updatePopoverSettings,
 } from './windows';
 import { createTray, destroyTray, updateTrayIcon } from './tray';
-import { startHookServer, stopHookServer, setPopoverWindow, getServerPort } from './hooks-listener';
+import { startHookServer, stopHookServer, setPopoverWindow, getServerPort, notifyRenderer } from './hooks-listener';
 import { getSettings, saveSettings } from './store';
-import { getSessions } from './sessions';
+import { getSessions, clearWaitingStatus } from './sessions';
 import { initNotifications, showNotification } from './notifications';
 import { speakText, startVoiceInput, stopVoiceInput, setPopoverWindowForVoice } from './elevenlabs';
 import {
@@ -262,8 +262,27 @@ ipcMain.on(IPC_CHANNELS.CLOSE_WINDOW, (event) => {
 });
 
 // Input to session
-ipcMain.handle(IPC_CHANNELS.SEND_INPUT_TO_SESSION, (_, sessionId: string, input: string) => {
-  return sendInputToSession(sessionId, input);
+ipcMain.handle(IPC_CHANNELS.SEND_INPUT_TO_SESSION, async (_, sessionId: string, input: string) => {
+  const success = await sendInputToSession(sessionId, input);
+  if (success) {
+    // Clear waiting status after successful input
+    clearWaitingStatus(sessionId);
+    // Notify renderer about the update
+    notifyRenderer();
+  }
+  return success;
+});
+
+// Clear session
+ipcMain.handle(IPC_CHANNELS.CLEAR_SESSION, (_, sessionId: string) => {
+  const { removeSession, getSessions } = require('./sessions');
+  const result = removeSession(sessionId);
+  // Notify renderer about the update
+  const popoverWindow = getPopoverWindow();
+  if (popoverWindow && !popoverWindow.isDestroyed()) {
+    popoverWindow.webContents.send(IPC_CHANNELS.SESSIONS_UPDATED, getSessions());
+  }
+  return result;
 });
 
 // Notifications

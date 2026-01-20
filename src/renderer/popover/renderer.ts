@@ -1,3 +1,10 @@
+// Option for AskUserQuestion prompts
+interface InputOption {
+  label: string;
+  value: string;
+  description?: string;
+}
+
 // Claude session interface
 interface ClaudeSession {
   id: string;
@@ -7,6 +14,10 @@ interface ClaudeSession {
   lastActivity: number;
   currentTool?: string;
   lastNotification?: string;
+  slug?: string; // Human-readable session name from Claude (e.g., "lexical-riding-yeti")
+  // Fields for AskUserQuestion prompts
+  question?: string;
+  options?: InputOption[];
 }
 
 // DOM Elements
@@ -158,26 +169,48 @@ function renderSessions(sessions: ClaudeSession[]) {
       (session) => `
     <div class="session-card" data-session-id="${session.id}">
       <div class="session-header">
-        <span class="session-id">${session.id.substring(0, 8)}...</span>
+        <span class="session-name">${getSessionName(session)}</span>
         <div class="session-status ${session.status}">
           <span class="status-pulse"></span>
           ${session.status.charAt(0).toUpperCase() + session.status.slice(1)}
         </div>
       </div>
-      <div class="session-directory">${truncatePath(session.workingDirectory)}</div>
+      <div class="session-directory">${session.workingDirectory !== 'Unknown' ? truncatePath(session.workingDirectory) : ''}</div>
+      <div class="session-id-small">${session.id.substring(0, 8)}</div>
       ${session.currentTool ? `<div class="session-tool">Using: ${session.currentTool}</div>` : ''}
-      ${session.lastNotification ? `<div class="session-notification">${session.lastNotification}</div>` : ''}
+      ${session.status === 'waiting' && session.question ? `<div class="session-question">${escapeHtml(session.question)}</div>` : ''}
+      ${session.status === 'waiting' && session.options && session.options.length > 0 ? `
+        <div class="session-options">
+          ${session.options.map((opt, idx) => `
+            <button class="option-btn" data-action="select-option" data-session="${session.id}" data-value="${escapeHtml(opt.value)}" title="${opt.description ? escapeHtml(opt.description) : ''}">
+              ${escapeHtml(opt.label)}
+            </button>
+          `).join('')}
+        </div>
+      ` : ''}
+      ${session.lastNotification && session.lastNotification !== session.question ? `<div class="session-notification">${escapeHtml(session.lastNotification)}</div>` : ''}
       <div class="session-time">Started ${formatTime(session.startTime)}</div>
       ${
         session.status === 'waiting'
           ? `
         <div class="session-actions">
           <button class="session-btn input-btn" data-action="input" data-session="${session.id}">
-            Send Input
+            ${session.options && session.options.length > 0 ? 'Other...' : 'Send Input'}
           </button>
           <button class="session-btn voice-btn ${recordingSessionId === session.id ? 'recording' : ''}"
                   data-action="voice" data-session="${session.id}">
             ${recordingSessionId === session.id ? 'Stop' : 'Voice'}
+          </button>
+        </div>
+      `
+          : ''
+      }
+      ${
+        session.status === 'stopped'
+          ? `
+        <div class="session-actions">
+          <button class="session-btn clear-btn" data-action="clear" data-session="${session.id}">
+            Clear
           </button>
         </div>
       `
@@ -192,13 +225,43 @@ function renderSessions(sessions: ClaudeSession[]) {
   sessionsListEl.querySelectorAll('.session-btn').forEach((btn) => {
     btn.addEventListener('click', handleSessionAction);
   });
+
+  // Add event listeners to option buttons
+  sessionsListEl.querySelectorAll('.option-btn').forEach((btn) => {
+    btn.addEventListener('click', handleOptionSelect);
+  });
 }
 
 function truncatePath(path: string): string {
+  if (!path || path === 'Unknown') {
+    return 'Session active';
+  }
+  // Show just the project name (last folder)
+  const parts = path.split('/').filter(Boolean);
+  const projectName = parts[parts.length - 1] || path;
+
   if (path.length <= 40) return path;
-  const parts = path.split('/');
   if (parts.length <= 2) return path;
   return `.../${parts.slice(-2).join('/')}`;
+}
+
+function getSessionName(session: ClaudeSession): string {
+  // Priority 1: Use slug if available (e.g., "lexical-riding-yeti")
+  if (session.slug) {
+    return session.slug;
+  }
+
+  // Priority 2: Use project folder name from working directory
+  if (session.workingDirectory && session.workingDirectory !== 'Unknown') {
+    const parts = session.workingDirectory.split('/').filter(Boolean);
+    const projectName = parts[parts.length - 1];
+    if (projectName) {
+      return projectName;
+    }
+  }
+
+  // Priority 3: Fallback to truncated session ID
+  return `session-${session.id.substring(0, 8)}`;
 }
 
 function formatTime(timestamp: number): string {
@@ -209,6 +272,13 @@ function formatTime(timestamp: number): string {
   if (hours > 0) return `${hours}h ${minutes % 60}m ago`;
   if (minutes > 0) return `${minutes}m ago`;
   return 'just now';
+}
+
+// Escape HTML to prevent XSS
+function escapeHtml(text: string): string {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
 }
 
 function handleSessionAction(event: Event) {
@@ -226,6 +296,44 @@ function handleSessionAction(event: Event) {
     } else {
       startRecording(sessionId);
     }
+  } else if (action === 'clear') {
+    void clearSession(sessionId);
+  }
+}
+
+// Handle clicking an option button
+async function handleOptionSelect(event: Event) {
+  const btn = event.currentTarget as HTMLButtonElement;
+  const sessionId = btn.dataset.session;
+  const value = btn.dataset.value;
+
+  if (!sessionId || !value) return;
+
+  // Disable button to prevent double-clicks
+  btn.disabled = true;
+  btn.textContent = 'Sending...';
+
+  try {
+    const success = await window.electronAPI.sendInputToSession(sessionId, value);
+    if (success) {
+      window.electronAPI.showNotification('Input Sent', `Selected: ${value}`);
+    } else {
+      window.electronAPI.showNotification('Input Failed', 'Could not send selection to Claude');
+      btn.disabled = false;
+      btn.textContent = value;
+    }
+  } catch (error) {
+    window.electronAPI.showNotification('Input Error', 'Failed to send selection');
+    btn.disabled = false;
+    btn.textContent = value;
+  }
+}
+
+async function clearSession(sessionId: string) {
+  try {
+    await window.electronAPI.clearSession(sessionId);
+  } catch (error) {
+    console.error('Failed to clear session:', error);
   }
 }
 
